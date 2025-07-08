@@ -6,7 +6,7 @@ from core.domain import WaveType
 class MainApplication(tk.Tk):
     def __init__(self, freq_manager, timer_manager):
         super().__init__()
-        self.title("Generador de Frecuencias")
+        self.title("Generador de Frecuencias sound hz emiter")
         self.geometry("900x600")
         self.configure(bg="#f0f0f0")
         
