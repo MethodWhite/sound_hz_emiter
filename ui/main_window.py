@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 from .components import FrequencyControl, TimerControl
 from core.domain import WaveType
 
@@ -8,21 +8,26 @@ class MainApplication(tk.Tk):
         super().__init__()
         self.title("Generador de Frecuencias")
         self.geometry("900x600")
+        self.configure(bg="#f0f0f0")
         
         self.freq_manager = freq_manager
         self.timer_manager = timer_manager
+        
+        # Definir max_frequencies ANTES de create_widgets
+        self.max_frequencies = 16
         
         self.create_widgets()
         self.update_ui()
         self.update_timer_display()
     
     def create_widgets(self):
-        main_frame = tk.Frame(self)
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame = tk.Frame(self, bg="#f0f0f0")
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
-        canvas = tk.Canvas(main_frame)
+        # Frame desplazable
+        canvas = tk.Canvas(main_frame, bg="#f0f0f0", highlightthickness=0)
         scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
-        self.scrollable_frame = tk.Frame(canvas)
+        self.scrollable_frame = tk.Frame(canvas, bg="#f0f0f0")
         
         self.scrollable_frame.bind(
             "<Configure>",
@@ -35,16 +40,35 @@ class MainApplication(tk.Tk):
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
         
-        self.freq_controls = []
+        # Botón para agregar frecuencias
         self.add_frequency_btn = tk.Button(
             self.scrollable_frame, 
             text="+ Agregar Frecuencia", 
             command=self.add_frequency,
+            pady=10,
+            bg="#4CAF50",
+            fg="white",
+            font=("Arial", 10, "bold")
+        )
+        self.add_frequency_btn.pack(fill=tk.X, padx=10, pady=10)
+        
+        # Contador de frecuencias
+        self.freq_counter = tk.Label(
+            self.scrollable_frame, 
+            text=f"Frecuencias: 0/{self.max_frequencies}",
+            bg="#f0f0f0",
+            font=("Arial", 9)
+        )
+        self.freq_counter.pack(fill=tk.X, padx=10, pady=(0, 10))
+        
+        # Temporizador
+        timer_frame = tk.LabelFrame(
+            self, 
+            text="Control de Tiempo",
+            bg="#f0f0f0",
+            padx=10,
             pady=10
         )
-        self.add_frequency_btn.pack(fill=tk.X, padx=10, pady=5)
-        
-        timer_frame = tk.LabelFrame(self, text="Control de Tiempo")
         timer_frame.pack(fill=tk.X, padx=10, pady=10)
         
         self.timer_control = TimerControl(
@@ -54,9 +78,18 @@ class MainApplication(tk.Tk):
         )
         self.timer_control.pack(fill=tk.X, padx=5, pady=5)
         
+        # Agregar frecuencia inicial
+        self.freq_controls = []
         self.add_frequency()
     
     def add_frequency(self):
+        if len(self.freq_controls) >= self.max_frequencies:
+            messagebox.showwarning(
+                "Límite alcanzado", 
+                f"No se pueden agregar más de {self.max_frequencies} frecuencias"
+            )
+            return
+            
         config = self.freq_manager.add_frequency(WaveType.SILENCE, 0.0)
         control = FrequencyControl(
             self.scrollable_frame,
@@ -68,6 +101,11 @@ class MainApplication(tk.Tk):
         )
         control.pack(fill=tk.X, padx=10, pady=5, before=self.add_frequency_btn)
         self.freq_controls.append(control)
+        self.update_freq_counter()
+    
+    def update_freq_counter(self):
+        count = len(self.freq_controls)
+        self.freq_counter.config(text=f"Frecuencias: {count}/{self.max_frequencies}")
     
     def play_frequency(self, freq_id):
         self.freq_manager.toggle_play(freq_id)
@@ -93,6 +131,10 @@ class MainApplication(tk.Tk):
     
     def start_timer(self):
         hours, minutes, seconds = self.timer_control.get_time()
+        if hours == 0 and minutes == 0 and seconds == 0:
+            messagebox.showwarning("Tiempo inválido", "Por favor establece un tiempo mayor a 0")
+            return
+            
         self.timer_manager.start_timer(hours, minutes, seconds)
     
     def stop_timer(self):
