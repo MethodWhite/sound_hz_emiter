@@ -2,7 +2,12 @@ Sound Hz Emiter es un programa enfocado en generar frecuencias básicas en herci
 
 Pre-requisistos
 
-pip install numpy pyaudio
+pip install -r requirements.txt
+
+Uso:
+
+python main.py
+
 
 Consejo:
 
@@ -10,4 +15,6 @@ Idealmente utilizar un entorno virtual de python 3.
 
 Bugs:
 
-Actualmente solo permite utilizar 7 frecuencias simultaneamente, se estima romper esa barrera en actualizaciones posteriores.
+Actualmente solo permite utilizar 8 frecuencias simultaneamente, se estima romper esa barrera en actualizaciones posteriores.
+
+Hay un bug de dependencia que será corregido en breve.
