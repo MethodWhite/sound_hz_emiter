@@ -1,15 +1,16 @@
 import numpy as np
 import time
 import logging
-from .waveform_generators import WaveformType, WaveformGenerator
 import threading
 import queue
+from .waveform_generators import WaveformType, WaveformGenerator
+from utils.constants import SAMPLE_RATE
 
 logger = logging.getLogger(__name__)
 
 class AudioEngine:
     def __init__(self):
-        self.sample_rate = 44100
+        self.sample_rate = SAMPLE_RATE
         self.is_playing = False
         self.frequency = 440.0
         self.amplitude = 0.5
@@ -18,44 +19,63 @@ class AudioEngine:
         self.stop_event = threading.Event()
         self.visualization_callback = None
         self.audio_queue = queue.Queue()
+        self.stream = None
+        self.device = None
+        self.frequencies = []  # Lista de frecuencias para mezclar
         
     def _audio_thread_func(self):
-        import sounddevice as sd
         try:
-            stream = sd.OutputStream(
-                samplerate=self.sample_rate,
-                channels=1,
-                dtype=np.float32
-            )
-            stream.start()
-            
-            while not self.stop_event.is_set():
-                try:
-                    # Obtener muestras de la cola (hasta 100ms de audio)
-                    samples = self.audio_queue.get(timeout=0.1)
-                    stream.write(samples)
-                    
-                    # Notificar visualización
-                    if self.visualization_callback:
-                        self.visualization_callback(samples)
-                except queue.Empty:
-                    continue
-                    
-            stream.stop()
-            stream.close()
+            import sounddevice as sd
+            try:
+                self.stream = sd.OutputStream(
+                    samplerate=self.sample_rate,
+                    channels=1,
+                    dtype=np.float32
+                )
+                self.stream.start()
+                
+                while not self.stop_event.is_set():
+                    try:
+                        samples = self.audio_queue.get(timeout=0.1)
+                        if self.stream and self.stream.active:
+                            self.stream.write(samples)
+                            
+                        # Notificar visualización
+                        if self.visualization_callback:
+                            self.visualization_callback(samples)
+                    except queue.Empty:
+                        continue
+            finally:
+                if self.stream:
+                    self.stream.stop()
+                    self.stream.close()
         except ImportError:
-            logger.error("SoundDevice no está disponible. La reproducción de audio no funcionará.")
+            logger.warning("SoundDevice no está disponible. La reproducción de audio no funcionará.")
         except Exception as e:
             logger.error(f"Error en el hilo de audio: {str(e)}")
     
     def _generate_samples(self, duration):
-        return WaveformGenerator.generate_samples(
-            self.wave_type,
-            self.frequency,
-            self.amplitude,
-            self.sample_rate,
-            duration
-        )
+        # Generar muestra para cada frecuencia y mezclarlas
+        mixed_samples = None
+        
+        # Si no hay frecuencias definidas, usar la frecuencia principal
+        frequencies = self.frequencies if self.frequencies else [self.frequency]
+        
+        for freq in frequencies:
+            samples = WaveformGenerator.generate_samples(
+                self.wave_type,
+                freq,
+                self.amplitude / len(frequencies),  # Normalizar amplitud
+                self.sample_rate,
+                duration
+            )
+            
+            if mixed_samples is None:
+                mixed_samples = samples
+            else:
+                mixed_samples += samples
+                
+        return mixed_samples
     
     def start_playback(self):
         if self.is_playing:
@@ -103,3 +123,21 @@ class AudioEngine:
     
     def set_visualization_callback(self, callback):
         self.visualization_callback = callback
+    
+    def add_frequency(self, frequency):
+        """Añade una nueva frecuencia a la mezcla"""
+        self.frequencies.append(frequency)
+    
+    def remove_frequency(self, frequency):
+        """Elimina una frecuencia de la mezcla"""
+        if frequency in self.frequencies:
+            self.frequencies.remove(frequency)
+    
+    def clear_frequencies(self):
+        """Limpia todas las frecuencias adicionales"""
+        self.frequencies = []
+    
+    def set_timer(self, duration):
+        """Configura un temporizador para detener la reproducción"""
+        self.timer_duration = duration
+        self.timer_start = time.time()

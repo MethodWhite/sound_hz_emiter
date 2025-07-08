@@ -23,7 +23,6 @@ class WaveformGenerator:
             return amplitude * 2 * (t * frequency - np.floor(t * frequency + 0.5))
         
         elif wave_type == WaveformType.TRIANGLE:
-            # Corregido: paréntesis balanceados
             return amplitude * (2 * np.abs(2 * (t * frequency - np.floor(t * frequency + 0.5)) - 1))
         
         elif wave_type == WaveformType.WHITE_NOISE:

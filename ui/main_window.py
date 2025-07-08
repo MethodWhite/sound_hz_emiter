@@ -3,15 +3,15 @@ import os
 import logging
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-    QGroupBox, QLabel, QMessageBox
+    QGroupBox, QLabel, QMessageBox, QSizePolicy
 )
 from PySide6.QtGui import QIcon
 from .controls import (
     FrequencyControl, AmplitudeControl, WaveformSelector,
-    DeviceSelector, PlaybackControl, VisualizationWidget
+    PlaybackControl, VisualizationWidget, TimerControl, FrequencyListControl
 )
 from services.audio_service import AudioService
-from utils import constants
+from utils.constants import DEFAULT_FREQUENCY, DEFAULT_AMPLITUDE
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -21,7 +21,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Advanced Sound Emitter")
-        self.setMinimumSize(800, 600)
+        self.setMinimumSize(1000, 800)
         
         # Set window icon
         icon_path = os.path.join(os.path.dirname(__file__), "icon.png")
@@ -31,22 +31,15 @@ class MainWindow(QMainWindow):
         self.audio_service = AudioService()
         self.audio_service.playbackStateChanged.connect(self.handle_playback_state)
         self.audio_service.errorOccurred.connect(self.handle_error)
+        self.audio_service.timerUpdated.connect(self.timer_control.update_timer)
         
         self.setup_ui()
         self.setup_connections()
         
         # Set default values
-        self.frequency_control.set_value(constants.DEFAULT_FREQUENCY)
-        self.amplitude_control.set_value(constants.DEFAULT_AMPLITUDE)
-        self.audio_service.setup_visualization(self.visualization_widget.update_waveform)
-        
-        # Load devices
-        devices = self.audio_service.get_available_devices()
-        if devices:
-            self.device_selector.set_devices(devices)
-        else:
-            self.handle_error("No audio output devices found")
-    
+        self.frequency_control.set_value(DEFAULT_FREQUENCY)
+        self.amplitude_control.set_value(DEFAULT_AMPLITUDE)
+
     def setup_ui(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -77,12 +70,12 @@ class MainWindow(QMainWindow):
         wave_layout.addWidget(self.waveform_selector)
         control_layout.addLayout(wave_layout)
         
-        # Device selection
-        device_layout = QHBoxLayout()
-        device_layout.addWidget(QLabel("Output Device:"))
-        self.device_selector = DeviceSelector()
-        device_layout.addWidget(self.device_selector)
-        control_layout.addLayout(device_layout)
+        # Timer control
+        timer_layout = QHBoxLayout()
+        timer_layout.addWidget(QLabel("Duration:"))
+        self.timer_control = TimerControl()
+        timer_layout.addWidget(self.timer_control)
+        control_layout.addLayout(timer_layout)
         
         # Playback controls
         self.playback_control = PlaybackControl()
@@ -91,28 +84,45 @@ class MainWindow(QMainWindow):
         control_group.setLayout(control_layout)
         main_layout.addWidget(control_group)
         
+        # Additional frequencies
+        self.freq_list_control = FrequencyListControl()
+        main_layout.addWidget(self.freq_list_control)
+        
         # Visualization
         vis_group = QGroupBox("Waveform Visualization")
         vis_layout = QVBoxLayout()
         self.visualization_widget = VisualizationWidget()
         vis_layout.addWidget(self.visualization_widget)
         vis_group.setLayout(vis_layout)
-        main_layout.addWidget(vis_group)
+        main_layout.addWidget(vis_group, 1)  # Expandir espacio
         
         # Status bar
         self.statusBar().showMessage("Ready")
+        
+        # Configurar servicio de audio
+        self.audio_service.setup_visualization(self.visualization_widget.update_waveform)
     
     def setup_connections(self):
         # Connect controls to audio service
         self.frequency_control.valueChanged.connect(self.audio_service.set_frequency)
         self.amplitude_control.valueChanged.connect(self.audio_service.set_amplitude)
-        self.waveform_selector.currentIndexChanged.connect(self.audio_service.set_waveform)
-        self.device_selector.currentIndexChanged.connect(
-            lambda idx: self.audio_service.set_device(idx))
+        self.waveform_selector.currentIndexChanged.connect(
+            lambda idx: self.audio_service.set_waveform(idx))
         
         # Playback controls
-        self.playback_control.playClicked.connect(self.audio_service.start_playback)
+        self.playback_control.playClicked.connect(self.start_playback)
         self.playback_control.stopClicked.connect(self.audio_service.stop_playback)
+        
+        # Timer control
+        self.timer_control.valueChanged.connect(self.timer_control.update_timer)
+        
+        # Frequency list control
+        self.freq_list_control.addFrequency.connect(self.audio_service.add_frequency)
+        self.freq_list_control.removeFrequency.connect(self.audio_service.remove_frequency)
+    
+    def start_playback(self):
+        duration = self.timer_control.get_duration()
+        self.audio_service.start_playback(duration)
     
     def handle_playback_state(self, is_playing):
         self.playback_control.set_playing(is_playing)

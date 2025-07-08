@@ -1,20 +1,25 @@
-from PySide6.QtCore import QObject, Signal, Slot
+from PySide6.QtCore import QObject, Signal, Slot, QTimer
 from core.audio_engine import AudioEngine
 from core.waveform_generators import WaveformType
-import numpy as np
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
 class AudioService(QObject):
     playbackStateChanged = Signal(bool)
     errorOccurred = Signal(str)
+    timerUpdated = Signal(int)  # Señal para actualizar el temporizador
     
     def __init__(self, parent=None):
         super().__init__(parent)
         self.engine = AudioEngine()
         self.visualization_callback = None
-        
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_timer)
+        self.timer_duration = 0
+        self.timer_remaining = 0
+    
     @Slot(float)
     def set_frequency(self, frequency):
         try:
@@ -43,22 +48,17 @@ class AudioService(QObject):
             logger.error(error_msg)
             self.errorOccurred.emit(error_msg)
     
-    @Slot(int)
-    def set_device(self, device_index):
-        try:
-            self.engine.set_device(device_index)
-        except Exception as e:
-            error_msg = f"Device error: {str(e)}"
-            logger.error(error_msg)
-            self.errorOccurred.emit(error_msg)
-    
     @Slot()
-    def start_playback(self):
+    def start_playback(self, duration=0):
         try:
-            if self.engine.start_playback():
-                self.playbackStateChanged.emit(True)
-            else:
-                self.errorOccurred.emit("Failed to start playback")
+            self.engine.start_playback()
+            self.playbackStateChanged.emit(True)
+            
+            # Configurar temporizador si se especificó una duración
+            if duration > 0:
+                self.timer_duration = duration
+                self.timer_remaining = duration
+                self.timer.start(1000)  # Actualizar cada segundo
         except Exception as e:
             error_msg = f"Playback start error: {str(e)}"
             logger.error(error_msg)
@@ -67,17 +67,13 @@ class AudioService(QObject):
     @Slot()
     def stop_playback(self):
         try:
-            if self.engine.stop_playback():
-                self.playbackStateChanged.emit(False)
-            else:
-                self.errorOccurred.emit("Failed to stop playback")
+            self.engine.stop_playback()
+            self.playbackStateChanged.emit(False)
+            self.timer.stop()
         except Exception as e:
             error_msg = f"Playback stop error: {str(e)}"
             logger.error(error_msg)
             self.errorOccurred.emit(error_msg)
-    
-    def get_available_devices(self):
-        return self.engine.device_manager.get_device_list()
     
     def setup_visualization(self, callback):
         self.visualization_callback = callback
@@ -85,7 +81,41 @@ class AudioService(QObject):
     
     def _process_visualization_data(self, samples):
         if self.visualization_callback and len(samples) > 0:
-            # Downsample to 1000 points max for performance
+            # Downsample para mejor rendimiento
             step = max(1, len(samples) // 1000)
-            downsampled = samples[::step]
-            self.visualization_callback(downsampled)
+            self.visualization_callback(samples[::step])
+    
+    @Slot()
+    def update_timer(self):
+        if self.timer_remaining > 0:
+            self.timer_remaining -= 1
+            self.timerUpdated.emit(self.timer_remaining)
+        else:
+            self.stop_playback()
+    
+    @Slot(float)
+    def add_frequency(self, frequency):
+        try:
+            self.engine.add_frequency(frequency)
+        except Exception as e:
+            error_msg = f"Add frequency error: {str(e)}"
+            logger.error(error_msg)
+            self.errorOccurred.emit(error_msg)
+    
+    @Slot(float)
+    def remove_frequency(self, frequency):
+        try:
+            self.engine.remove_frequency(frequency)
+        except Exception as e:
+            error_msg = f"Remove frequency error: {str(e)}"
+            logger.error(error_msg)
+            self.errorOccurred.emit(error_msg)
+    
+    @Slot()
+    def clear_frequencies(self):
+        try:
+            self.engine.clear_frequencies()
+        except Exception as e:
+            error_msg = f"Clear frequencies error: {str(e)}"
+            logger.error(error_msg)
+            self.errorOccurred.emit(error_msg)
