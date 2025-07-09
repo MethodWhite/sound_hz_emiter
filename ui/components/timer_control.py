@@ -13,7 +13,6 @@ class TimerControl(QGroupBox):
         self.timer.timeout.connect(self.update_timer)
         self.remaining_seconds = 0
         self.title_text = "Timer Control"
-        
         self.init_ui()
         
     def init_ui(self):
@@ -21,36 +20,43 @@ class TimerControl(QGroupBox):
             QGroupBox { 
                 font-weight: bold; 
                 border: 1px solid gray;
-                border-radius: 3px;
+                border-radius: 4px;
                 margin-top: 10px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 left: 10px;
+                padding: 0 3px;
             }
         """)
         
         layout = QHBoxLayout(self)
         layout.setContentsMargins(5, 15, 5, 5)
-        layout.setSpacing(5)
+        layout.setSpacing(10)
         
         # Time inputs
         self.hour_spin = QSpinBox()
         self.hour_spin.setRange(0, 24)
         self.hour_spin.setFixedWidth(50)
-        layout.addWidget(QLabel("H:"))
+        hour_label = QLabel("H:")
+        hour_label.setStyleSheet("font-weight: bold;")
+        layout.addWidget(hour_label)
         layout.addWidget(self.hour_spin)
         
         self.min_spin = QSpinBox()
         self.min_spin.setRange(0, 59)
         self.min_spin.setFixedWidth(50)
-        layout.addWidget(QLabel("M:"))
+        min_label = QLabel("M:")
+        min_label.setStyleSheet("font-weight: bold;")
+        layout.addWidget(min_label)
         layout.addWidget(self.min_spin)
         
         self.sec_spin = QSpinBox()
         self.sec_spin.setRange(0, 59)
         self.sec_spin.setFixedWidth(50)
-        layout.addWidget(QLabel("S:"))
+        sec_label = QLabel("S:")
+        sec_label.setStyleSheet("font-weight: bold;")
+        layout.addWidget(sec_label)
         layout.addWidget(self.sec_spin)
         
         # Buttons
@@ -61,6 +67,7 @@ class TimerControl(QGroupBox):
                 color: white; 
                 min-width: 60px;
                 padding: 3px;
+                border-radius: 4px;
             }
             QPushButton:hover {
                 background-color: #3e8e41;
@@ -75,6 +82,7 @@ class TimerControl(QGroupBox):
                 color: white; 
                 min-width: 60px;
                 padding: 3px;
+                border-radius: 4px;
             }
             QPushButton:hover {
                 background-color: #d32f2f;
@@ -105,6 +113,13 @@ class TimerControl(QGroupBox):
     def set_light_theme(self):
         self.setStyleSheet("""
             QGroupBox { 
+                font-weight: bold; 
+                border: 1px solid gray;
+                border-radius: 4px;
+                margin-top: 10px;
+                color: black;
+            }
+            QGroupBox::title {
                 color: black;
             }
         """)
@@ -112,6 +127,13 @@ class TimerControl(QGroupBox):
     def set_dark_theme(self):
         self.setStyleSheet("""
             QGroupBox { 
+                font-weight: bold; 
+                border: 1px solid gray;
+                border-radius: 4px;
+                margin-top: 10px;
+                color: #64b4ff;
+            }
+            QGroupBox::title {
                 color: #64b4ff;
             }
         """)
