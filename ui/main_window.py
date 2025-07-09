@@ -114,8 +114,13 @@ class MainWindow(QMainWindow):
     def update_language(self):
         lang = self.translations[self.current_language]
         self.title_label.setText(lang["title"])
-        self.frequency_control.update_language(lang["controls"], lang["add_freq"])
-        self.timer_control.update_language(lang["timer"])
+        self.frequency_control.update_language(
+            lang["controls"], 
+            lang["add_freq"],
+            self.current_language
+        )
+    
+    self.timer_control.update_language(lang["timer"])
 
     def toggle_theme(self):
         self.is_dark_theme = not self.is_dark_theme

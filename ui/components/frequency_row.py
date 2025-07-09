@@ -155,17 +155,17 @@ class FrequencyRow(QWidget):
         self.stopClicked.emit(self.row_id)
         
     def set_light_theme(self):
-        """Restablece los estilos a los valores por defecto del sistema"""
+        """Restablece los estilos a los valores por defecto"""
         self.setStyleSheet("")
         
-        # Resetear estilos para cada tipo de widget por separado
+        # Resetear estilos para cada tipo de widget
         for spinbox in self.findChildren(QDoubleSpinBox):
             spinbox.setStyleSheet("")
         for combobox in self.findChildren(QComboBox):
             combobox.setStyleSheet("")
         for label in self.findChildren(QLabel):
             label.setStyleSheet("")
-        
+    
     def set_dark_theme(self):
         """Aplica estilos para el tema oscuro"""
         self.setStyleSheet("""

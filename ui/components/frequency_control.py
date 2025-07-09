@@ -51,7 +51,7 @@ class FrequencyControl(QWidget):
         separator.setStyleSheet("margin: 5px 0; color: #ccc;")
         layout.addWidget(separator)
         
-        # Scroll Area (sin estilos personalizados)
+        # Scroll Area
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.NoFrame)
@@ -67,19 +67,18 @@ class FrequencyControl(QWidget):
         # Add initial frequency (1 Hz)
         self.add_frequency(1)
         
-    def update_language(self, controls_text, add_button_text):
+    def update_language(self, controls_text, add_button_text, current_language=None):
         self.controls_title = controls_text
         self.add_button_text = add_button_text
         self.title_label.setText(self.controls_title)
         self.add_btn.setText(self.add_button_text)
-        for row in self.rows:
-            row.change_language(self.current_language)
+        
+        if current_language is not None:
+            for row in self.rows:
+                row.change_language(current_language)
         
     def set_light_theme(self):
         self.title_label.setStyleSheet("font-weight: bold; font-size: 14px; color: black;")
-        scroll = self.findChild(QScrollArea)
-        if scroll:
-            scroll.setStyleSheet("")
         for row in self.rows:
             row.set_light_theme()
         
