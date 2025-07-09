@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                               QStatusBar, QLabel, QToolButton, QScrollArea, 
                               QComboBox, QApplication)
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QLocale  # Añadir QLocale aquí
 from PySide6.QtGui import QIcon, QPalette, QColor, QFont
 
 from ui.components.timer_control import TimerControl
@@ -91,11 +91,6 @@ class MainWindow(QMainWindow):
         scroll.setWidget(self.frequency_control)
         main_layout.addWidget(scroll, 1)
         
-        # Crea el frequency_control antes de asignarlo al scroll
-        self.frequency_control = FrequencyControl(self.audio_service)
-        scroll.setWidget(self.frequency_control)
-        main_layout.addWidget(scroll, 1)
-
         # Barra de estado
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
@@ -105,6 +100,13 @@ class MainWindow(QMainWindow):
         self.timer_control.timerStopped.connect(self.audio_service.stop_all_tones)
         self.theme_changed.connect(self.frequency_control.set_dark_theme)
         self.theme_changed.connect(self.timer_control.set_dark_theme)
+        
+       # Configurar formato decimal (punto en lugar de coma)
+        QLocale.setDefault(QLocale(QLocale.English, QLocale.UnitedStates))
+
+        # Barra de estado
+        self.status_bar = QStatusBar()
+        self.setStatusBar(self.status_bar)
 
     def change_language(self, index):
         self.current_language = self.lang_combo.itemData(index)
@@ -119,8 +121,7 @@ class MainWindow(QMainWindow):
             lang["add_freq"],
             self.current_language
         )
-    
-    self.timer_control.update_language(lang["timer"])
+        self.timer_control.update_language(lang["timer"])
 
     def toggle_theme(self):
         self.is_dark_theme = not self.is_dark_theme

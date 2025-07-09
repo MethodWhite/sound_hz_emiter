@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (QWidget, QHBoxLayout, QLabel, QSlider, 
                               QPushButton, QDoubleSpinBox, QComboBox)
 from PySide6.QtCore import Signal, Qt
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QFont
 
 class FrequencyRow(QWidget):
     playClicked = Signal(int)
@@ -12,12 +12,13 @@ class FrequencyRow(QWidget):
     waveTypeChanged = Signal(int, str)
     panningChanged = Signal(int, float)
     
+    # Usar nombres consistentes en inglés
     WAVE_TYPES_EN = ["Sine", "Square", "Triangle", "Sawtooth", 
                     "White Noise", "Pink Noise", "Brown Noise"]
     WAVE_TYPES_ES = ["Seno", "Cuadrada", "Triangular", "Diente de Sierra",
                     "Ruido Blanco", "Ruido Rosa", "Ruido Marrón"]
     
-    def __init__(self, row_id, frequency=1.0, parent=None):
+    def __init__(self, row_id, frequency=440.0, parent=None):  # Cambiado a 440 Hz por defecto
         super().__init__(parent)
         self.row_id = row_id
         self.is_playing = False
@@ -45,22 +46,34 @@ class FrequencyRow(QWidget):
         self.wave_combo.currentTextChanged.connect(self.on_wave_type_changed)
         layout.addWidget(self.wave_combo)
         
-        # Volume slider
+        # Volume slider with label
+        vol_layout = QHBoxLayout()
+        vol_layout.setSpacing(5)
+        vol_label = QLabel("Vol:")
+        vol_label.setFont(QFont("Segoe UI", 9))
         self.volume_slider = QSlider(Qt.Horizontal)
         self.volume_slider.setRange(0, 100)
         self.volume_slider.setValue(50)
         self.volume_slider.setFixedWidth(80)
-        layout.addWidget(QLabel("Vol:"))
-        layout.addWidget(self.volume_slider)
+        vol_layout.addWidget(vol_label)
+        vol_layout.addWidget(self.volume_slider)
+        layout.addLayout(vol_layout)
         
-        # Panning control
+        # Panning control with labels
+        pan_layout = QHBoxLayout()
+        pan_layout.setSpacing(5)
+        pan_label_l = QLabel("L")
+        pan_label_l.setFont(QFont("Segoe UI", 9))
         self.pan_slider = QSlider(Qt.Horizontal)
         self.pan_slider.setRange(-100, 100)
         self.pan_slider.setValue(0)
-        self.pan_slider.setFixedWidth(100)
-        layout.addWidget(QLabel("L"))
-        layout.addWidget(self.pan_slider)
-        layout.addWidget(QLabel("R"))
+        self.pan_slider.setFixedWidth(80)
+        pan_label_r = QLabel("R")
+        pan_label_r.setFont(QFont("Segoe UI", 9))
+        pan_layout.addWidget(pan_label_l)
+        pan_layout.addWidget(self.pan_slider)
+        pan_layout.addWidget(pan_label_r)
+        layout.addLayout(pan_layout)
         
         # Play/Pause button
         self.play_pause_btn = QPushButton()
@@ -101,6 +114,7 @@ class FrequencyRow(QWidget):
         
         # Remove button
         self.remove_btn = QPushButton("×")
+        self.remove_btn.setFont(QFont("Arial", 14))
         self.remove_btn.setFixedSize(30, 30)
         self.remove_btn.setStyleSheet("""
             QPushButton {
@@ -109,7 +123,6 @@ class FrequencyRow(QWidget):
                 font-weight: bold;
                 border: none;
                 border-radius: 4px;
-                font-size: 14px;
             }
             QPushButton:hover {
                 background-color: #d32f2f;

@@ -22,6 +22,7 @@ class TimerControl(QGroupBox):
                 border: 1px solid gray;
                 border-radius: 4px;
                 margin-top: 10px;
+                padding-top: 10px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
@@ -31,7 +32,7 @@ class TimerControl(QGroupBox):
         """)
         
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(5, 15, 5, 5)
+        layout.setContentsMargins(10, 20, 10, 10)  # Aumentar margen superior
         layout.setSpacing(10)
         
         # Time inputs
@@ -172,6 +173,8 @@ class TimerControl(QGroupBox):
     def update_timer(self):
         if self.remaining_seconds <= 0:
             self.stop_timer()
+            # Detener todos los tonos al finalizar
+            self.audio_service.stop_all_tones()
             return
             
         self.remaining_seconds -= 1

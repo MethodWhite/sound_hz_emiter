@@ -44,11 +44,11 @@ class FrequencyControl(QWidget):
         
         layout.addLayout(title_layout)
         
-        # Separator
+        # Separator - Hacerlo más visible
         separator = QFrame()
         separator.setFrameShape(QFrame.HLine)
         separator.setFrameShadow(QFrame.Sunken)
-        separator.setStyleSheet("margin: 5px 0; color: #ccc;")
+        separator.setStyleSheet("margin: 5px 0; border: 1px solid #ccc;")
         layout.addWidget(separator)
         
         # Scroll Area
@@ -59,13 +59,13 @@ class FrequencyControl(QWidget):
         # Container for frequency rows
         self.rows_container = QWidget()
         self.rows_layout = QVBoxLayout(self.rows_container)
-        self.rows_layout.setContentsMargins(0, 5, 0, 0)
+        self.rows_layout.setContentsMargins(5, 5, 5, 5)  # Añadir márgenes
         self.rows_layout.setSpacing(8)
         scroll.setWidget(self.rows_container)
         layout.addWidget(scroll)
         
-        # Add initial frequency (1 Hz)
-        self.add_frequency(1)
+        # Add initial frequency (440 Hz)
+        self.add_frequency(440)
         
     def update_language(self, controls_text, add_button_text, current_language=None):
         self.controls_title = controls_text
