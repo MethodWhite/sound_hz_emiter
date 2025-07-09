@@ -1,79 +1,46 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel, QFrame, QHBoxLayout  # Añadir QHBoxLayout
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QScrollArea
 from .frequency_row import FrequencyRow
 
 class FrequencyControl(QWidget):
     def __init__(self, audio_service):
         super().__init__()
         self.audio_service = audio_service
-        self.rows = []
-        self.next_id = 0
+        self.frequencies = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
         
-        layout = QVBoxLayout()
-        self.setLayout(layout)
+        self.init_ui()
         
-        # Título
-        title_layout = QHBoxLayout()
-        title = QLabel("Control de Frecuencias")
-        title.setStyleSheet("font-weight: bold; font-size: 16px; color: #333;")
-        title_layout.addWidget(title)
+    def init_ui(self):
+        layout = QVBoxLayout(self)
         
-        # Botón para añadir
-        self.add_button = QPushButton("+ Añadir Frecuencia")
-        self.add_button.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
-        self.add_button.clicked.connect(self.add_frequency_row)
-        title_layout.addWidget(self.add_button)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
         
-        layout.addLayout(title_layout)
+        container = QWidget()
+        container_layout = QVBoxLayout(container)
         
-        # Separador
-        separator = QFrame()
-        separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setFrameShadow(QFrame.Shadow.Sunken)
-        separator.setStyleSheet("background-color: #ddd;")
-        layout.addWidget(separator)
+        self.rows = {}
+        for freq in self.frequencies:
+            row = FrequencyRow(freq, freq)
+            row.playClicked.connect(self.on_play)
+            row.pauseClicked.connect(self.on_pause)
+            row.stopClicked.connect(self.on_stop)
+            row.volumeChanged.connect(self.on_volume_changed)
+            container_layout.addWidget(row)
+            self.rows[freq] = row
+            
+        container_layout.addStretch()
+        scroll.setWidget(container)
+        layout.addWidget(scroll)
         
-        # Contenedor para filas
-        self.rows_container = QWidget()
-        self.rows_layout = QVBoxLayout(self.rows_container)
-        self.rows_layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.rows_container)
+    def on_play(self, freq):
+        row = self.rows[freq]
+        self.audio_service.play_frequency(freq, freq, row.volume_slider.value()/100)
         
-        # Añadir una fila inicial
-        self.add_frequency_row()
-    
-    def add_frequency_row(self, freq=440.0, volume=0.5, wave_type="Seno", panning=0.0):
-        row_id = self.next_id
-        self.next_id += 1
+    def on_pause(self, freq):
+        self.audio_service.pause_frequency(freq)
         
-        row = FrequencyRow(row_id, freq, volume, wave_type, panning)
-        row.frequency_changed.connect(self.update_frequency)
-        row.volume_changed.connect(self.update_volume)
-        row.wave_type_changed.connect(self.update_wave_type)
-        row.panning_changed.connect(self.update_panning)
-        row.remove_requested.connect(self.remove_row)
+    def on_stop(self, freq):
+        self.audio_service.stop_frequency(freq)
         
-        self.rows.append(row)
-        self.rows_layout.addWidget(row)
-        
-        # Registrar en el servicio de audio
-        self.audio_service.add_tone(row_id, freq, volume, wave_type, panning)
-    
-    def remove_row(self, row_id):
-        for i, row in enumerate(self.rows):
-            if row.row_id == row_id:
-                row.deleteLater()
-                self.rows.pop(i)
-                self.audio_service.remove_tone(row_id)
-                break
-    
-    def update_frequency(self, row_id, frequency):
-        self.audio_service.update_frequency(row_id, frequency)
-    
-    def update_volume(self, row_id, volume):
-        self.audio_service.update_volume(row_id, volume)
-    
-    def update_wave_type(self, row_id, wave_type):
-        self.audio_service.update_wave_type(row_id, wave_type)
-    
-    def update_panning(self, row_id, panning):
-        self.audio_service.update_panning(row_id, panning)
+    def on_volume_changed(self, freq, volume):
+        self.audio_service.set_volume(freq, volume)

@@ -1,92 +1,96 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QSpinBox, QFrame
-from PySide6.QtCore import QTimer, Qt
-from PySide6.QtGui import QFont
+from PySide6.QtWidgets import (QWidget, QHBoxLayout, QLabel, QPushButton, 
+                              QSpinBox, QGroupBox)
+from PySide6.QtCore import QTimer, Signal
 
 class TimerControl(QWidget):
+    timerStarted = Signal(int)  # seconds
+    timerStopped = Signal()
+    
     def __init__(self, audio_service):
         super().__init__()
         self.audio_service = audio_service
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_timer)
-        self.remaining_time = 0
+        self.remaining_seconds = 0
         
-        layout = QVBoxLayout()
-        layout.setContentsMargins(0, 10, 0, 10)
+        self.init_ui()
         
-        # Título
-        title = QLabel("Temporizador")
-        title.setStyleSheet("font-weight: bold; font-size: 16px; color: #333;")
-        layout.addWidget(title)
+    def init_ui(self):
+        layout = QHBoxLayout(self)
         
-        # Separador
-        separator = QFrame()
-        separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setFrameShadow(QFrame.Shadow.Sunken)
-        separator.setStyleSheet("background-color: #ddd;")
-        layout.addWidget(separator)
+        group = QGroupBox("Timer Control")
+        group_layout = QHBoxLayout(group)
         
-        # Controles de tiempo
-        time_layout = QHBoxLayout()
-        time_layout.addWidget(QLabel("Duración:"))
+        # Time inputs
+        self.hour_spin = QSpinBox()
+        self.hour_spin.setRange(0, 24)
+        group_layout.addWidget(QLabel("Hours:"))
+        group_layout.addWidget(self.hour_spin)
         
-        self.time_input = QSpinBox()
-        self.time_input.setRange(1, 3600)
-        self.time_input.setValue(300)  # 5 minutos por defecto
-        self.time_input.setSuffix(" seg")
-        self.time_input.setStyleSheet("padding: 5px;")
-        time_layout.addWidget(self.time_input)
+        self.min_spin = QSpinBox()
+        self.min_spin.setRange(0, 59)
+        group_layout.addWidget(QLabel("Min:"))
+        group_layout.addWidget(self.min_spin)
         
-        self.start_button = QPushButton("Iniciar")
-        self.start_button.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 5px;")
-        self.start_button.clicked.connect(self.start_timer)
-        time_layout.addWidget(self.start_button)
+        self.sec_spin = QSpinBox()
+        self.sec_spin.setRange(0, 59)
+        group_layout.addWidget(QLabel("Sec:"))
+        group_layout.addWidget(self.sec_spin)
         
-        self.stop_button = QPushButton("Detener Todo")
-        self.stop_button.setStyleSheet("background-color: #f44336; color: white; font-weight: bold; padding: 5px;")
-        self.stop_button.clicked.connect(self.stop_all)
-        time_layout.addWidget(self.stop_button)
+        # Buttons
+        self.start_btn = QPushButton("Start")
+        self.start_btn.clicked.connect(self.start_timer)
         
-        layout.addLayout(time_layout)
+        self.stop_btn = QPushButton("Stop")
+        self.stop_btn.setEnabled(False)
+        self.stop_btn.clicked.connect(self.stop_timer)
         
-        # Display
-        timer_display_layout = QHBoxLayout()
-        timer_display_layout.addStretch()
+        group_layout.addWidget(self.start_btn)
+        group_layout.addWidget(self.stop_btn)
         
-        self.timer_label = QLabel("05:00")
-        self.timer_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.timer_label.setStyleSheet("font-size: 42px; font-weight: bold; color: #2E7D32; padding: 10px;")
-        timer_display_layout.addWidget(self.timer_label)
+        # Timer display
+        self.timer_display = QLabel("00:00:00")
+        self.timer_display.setStyleSheet("font-size: 16pt;")
+        group_layout.addWidget(self.timer_display)
         
-        timer_display_layout.addStretch()
-        layout.addLayout(timer_display_layout)
+        layout.addWidget(group)
         
-        self.setLayout(layout)
-    
     def start_timer(self):
-        self.remaining_time = self.time_input.value()
-        self.update_display()
-        self.timer.start(1000)  # Actualizar cada segundo
-    
-    def update_timer(self):
-        if self.remaining_time > 0:
-            self.remaining_time -= 1
-            self.update_display()
-        else:
-            self.timer.stop()
-            self.audio_service.stop_all_tones()
-    
-    def stop_all(self):
-        self.timer.stop()
-        self.remaining_time = 0
-        self.update_display()
-        self.audio_service.stop_all_tones()
-    
-    def update_display(self):
-        mins, secs = divmod(self.remaining_time, 60)
-        self.timer_label.setText(f"{mins:02d}:{secs:02d}")
+        hours = self.hour_spin.value()
+        minutes = self.min_spin.value()
+        seconds = self.sec_spin.value()
         
-        # Cambiar color cuando el tiempo está por acabarse
-        if self.remaining_time < 60:  # Menos de 1 minuto
-            self.timer_label.setStyleSheet("font-size: 42px; font-weight: bold; color: #C62828; padding: 10px;")
+        self.remaining_seconds = hours * 3600 + minutes * 60 + seconds
+        if self.remaining_seconds > 0:
+            self.timer.start(1000)
+            self.start_btn.setEnabled(False)
+            self.stop_btn.setEnabled(True)
+            self.timerStarted.emit(self.remaining_seconds)
+            self.update_display()
+            
+    def stop_timer(self):
+        self.timer.stop()
+        self.remaining_seconds = 0
+        self.start_btn.setEnabled(True)
+        self.stop_btn.setEnabled(False)
+        self.timerStopped.emit()
+        self.update_display()
+        
+    def update_timer(self):
+        if self.remaining_seconds <= 0:
+            self.stop_timer()
+            return
+            
+        self.remaining_seconds -= 1
+        self.update_display()
+        
+    def update_display(self):
+        hours = self.remaining_seconds // 3600
+        minutes = (self.remaining_seconds % 3600) // 60
+        seconds = self.remaining_seconds % 60
+        self.timer_display.setText(f"{hours:02d}:{minutes:02d}:{seconds:02d}")
+        
+        if self.remaining_seconds < 60:  # Less than 1 minute
+            self.timer_display.setStyleSheet("font-size: 16pt; color: red;")
         else:
-            self.timer_label.setStyleSheet("font-size: 42px; font-weight: bold; color: #2E7D32; padding: 10px;")
+            self.timer_display.setStyleSheet("font-size: 16pt; color: black;")
