@@ -1,126 +1,157 @@
 from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-                              QApplication, QStatusBar, QSplitter, QLabel,
-                              QToolButton, QScrollArea)
+                              QStatusBar, QLabel, QToolButton, QScrollArea, 
+                              QComboBox, QFrame, QApplication)
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QIcon, QPalette, QColor, QPixmap
-from ui.components.frequency_control import FrequencyControl
+from PySide6.QtGui import QIcon, QPalette, QColor, QFont
+
+# Importaciones absolutas desde el paquete ui.components
 from ui.components.timer_control import TimerControl
-from ui.components.waveform_widget import WaveformWidget
+from ui.components.frequency_control import FrequencyControl
 from core.audio_service import AudioService
-import os
 
 class MainWindow(QMainWindow):
     theme_changed = Signal(bool)
+    language_changed = Signal(str)
     
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._initialized = True  # Bandera para evitar doble inicialización
         self.setWindowTitle("Sound Hz Emitter")
-        self.setGeometry(100, 100, 1200, 800)
+        self.setGeometry(100, 100, 900, 600)
         self.is_dark_theme = False
-        
-        # Audio service
+        self.current_language = "en"
         self.audio_service = AudioService()
         
-        # Setup UI
+        # Configuración de fuente
+        self.app_font = QFont("Segoe UI", 9)
+        self.app_font.setBold(True)
+        
+        # Diccionario de traducciones
+        self.translations = {
+            "en": {
+                "title": "Sound Hz Emitter",
+                "controls": "Frequency Controls",
+                "timer": "Timer Control",
+                "add_freq": "Add Frequency",
+                "spectrum": "Real-time Spectrum"
+            },
+            "es": {
+                "title": "Emisor de Hz",
+                "controls": "Controles de Frecuencia",
+                "timer": "Control de Tiempo",
+                "add_freq": "Añadir Frecuencia",
+                "spectrum": "Espectro en Tiempo Real"
+            }
+        }
+        
         self.init_ui()
         self.apply_light_theme()
-        
+        self.update_language()
+
     def init_ui(self):
-        # Central widget
+        # Widget central
         central_widget = QWidget()
+        central_widget.setFont(self.app_font)
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
-        
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(10)
+
         # Header
         header = QWidget()
         header_layout = QHBoxLayout(header)
-        
-        # Title
-        self.title_label = QLabel("Sound Frequency Emitter")
-        self.title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
+        header_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Título
+        self.title_label = QLabel()
+        self.title_label.setStyleSheet("font-size: 16px;")
         header_layout.addWidget(self.title_label)
-        
-        # Theme toggle button with icons
+
+        # Selector de idioma
+        self.lang_combo = QComboBox()
+        self.lang_combo.addItem("English", "en")
+        self.lang_combo.addItem("Español", "es")
+        self.lang_combo.currentIndexChanged.connect(self.change_language)
+        header_layout.addWidget(self.lang_combo)
+
+        # Botón de tema
         self.theme_btn = QToolButton()
-        self.sun_icon = QIcon(os.path.join("icons", "sun.png"))  # Asegúrate de tener estos iconos
-        self.moon_icon = QIcon(os.path.join("icons", "moon.png"))
-        self.theme_btn.setIcon(self.sun_icon)
+        self.theme_btn.setIcon(QIcon.fromTheme("weather-sunny"))
         self.theme_btn.clicked.connect(self.toggle_theme)
         header_layout.addWidget(self.theme_btn, alignment=Qt.AlignRight)
-        
         main_layout.addWidget(header)
-        
-        # Main content
-        splitter = QSplitter(Qt.Vertical)
-        
-        # Control panel
-        control_panel = QWidget()
-        control_layout = QVBoxLayout(control_panel)
-        
-        # Timer control
+
+        # Control de temporizador
         self.timer_control = TimerControl(self.audio_service)
-        control_layout.addWidget(self.timer_control)
-        
-        # Frequency control with scroll
+        main_layout.addWidget(self.timer_control)
+
+        # Control de frecuencias con scroll
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+
+
         self.frequency_control = FrequencyControl(self.audio_service)
         scroll.setWidget(self.frequency_control)
-        control_layout.addWidget(scroll)
-        
-        splitter.addWidget(control_panel)
-        
-        # Waveform display
-        self.waveform_widget = WaveformWidget()
-        splitter.addWidget(self.waveform_widget)
-        
-        main_layout.addWidget(splitter)
-        
-        # Status bar
+        main_layout.addWidget(scroll, 1)
+
+        # Barra de estado
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
-        
-        # Connect audio service to waveform display
-        self.audio_service.audio_updated.connect(self.waveform_widget.update_waveform)
-        
+
+        # Conectar señales
+        self.timer_control.timerStarted.connect(self.audio_service.start_all_tones)
+        self.timer_control.timerStopped.connect(self.audio_service.stop_all_tones)
+        self.theme_changed.connect(self.frequency_control.set_dark_theme)
+        self.theme_changed.connect(self.timer_control.set_dark_theme)
+
+    def change_language(self, index):
+        self.current_language = self.lang_combo.itemData(index)
+        self.update_language()
+        self.language_changed.emit(self.current_language)
+
+    def update_language(self):
+        lang = self.translations[self.current_language]
+        self.title_label.setText(lang["title"])
+        self.frequency_control.update_language(lang["controls"], lang["add_freq"])
+        self.timer_control.update_language(lang["timer"])
+
     def toggle_theme(self):
         self.is_dark_theme = not self.is_dark_theme
         if self.is_dark_theme:
             self.apply_dark_theme()
-            self.theme_btn.setIcon(self.sun_icon)
+            self.theme_btn.setIcon(QIcon.fromTheme("weather-sunny"))
         else:
             self.apply_light_theme()
-            self.theme_btn.setIcon(self.moon_icon)
+            self.theme_btn.setIcon(QIcon.fromTheme("weather-night"))
         self.theme_changed.emit(self.is_dark_theme)
-        
+
     def apply_light_theme(self):
         palette = QPalette()
         palette.setColor(QPalette.Window, QColor(240, 240, 240))
-        palette.setColor(QPalette.WindowText, QColor(0, 0, 0))
-        palette.setColor(QPalette.Base, QColor(255, 255, 255))
-        palette.setColor(QPalette.AlternateBase, QColor(233, 231, 227))
-        palette.setColor(QPalette.ToolTipBase, QColor(255, 255, 220))
-        palette.setColor(QPalette.ToolTipText, QColor(0, 0, 0))
-        palette.setColor(QPalette.Text, QColor(0, 0, 0))
+        palette.setColor(QPalette.WindowText, Qt.black)
+        palette.setColor(QPalette.Text, Qt.black)
+        palette.setColor(QPalette.ButtonText, Qt.black)
+        palette.setColor(QPalette.Base, Qt.white)
         palette.setColor(QPalette.Button, QColor(240, 240, 240))
-        palette.setColor(QPalette.ButtonText, QColor(0, 0, 0))
-        palette.setColor(QPalette.BrightText, QColor(255, 0, 0))
-        palette.setColor(QPalette.Highlight, QColor(0, 120, 215))
-        palette.setColor(QPalette.HighlightedText, QColor(255, 255, 255))
         QApplication.instance().setPalette(palette)
-        
+
+        # Aplicar estilos específicos
+        self.title_label.setStyleSheet("font-size: 16px; color: black;")
+        self.frequency_control.set_light_theme()
+        self.timer_control.set_light_theme()
+
     def apply_dark_theme(self):
         palette = QPalette()
         palette.setColor(QPalette.Window, QColor(53, 53, 53))
-        palette.setColor(QPalette.WindowText, QColor(255, 255, 255))
+        palette.setColor(QPalette.WindowText, QColor(100, 180, 255))
+        palette.setColor(QPalette.Text, QColor(100, 180, 255))
+        palette.setColor(QPalette.ButtonText, QColor(100, 180, 255))
         palette.setColor(QPalette.Base, QColor(25, 25, 25))
-        palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
-        palette.setColor(QPalette.ToolTipBase, QColor(0, 0, 0))
-        palette.setColor(QPalette.ToolTipText, QColor(255, 255, 255))
-        palette.setColor(QPalette.Text, QColor(255, 255, 255))
         palette.setColor(QPalette.Button, QColor(53, 53, 53))
-        palette.setColor(QPalette.ButtonText, QColor(255, 255, 255))
-        palette.setColor(QPalette.BrightText, QColor(255, 0, 0))
-        palette.setColor(QPalette.Highlight, QColor(142, 45, 197))
-        palette.setColor(QPalette.HighlightedText, QColor(255, 255, 255))
         QApplication.instance().setPalette(palette)
+
+        # Aplicar estilos específicos
+        self.title_label.setStyleSheet("font-size: 16px; color: white;")
+        self.frequency_control.set_dark_theme()
+        self.timer_control.set_dark_theme()
