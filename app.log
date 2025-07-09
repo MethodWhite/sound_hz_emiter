@@ -1,0 +1,6 @@
+2025-07-08 20:51:12,136 - main - INFO - Iniciando aplicación
+2025-07-08 20:51:17,183 - core.audio_engine - ERROR - Error en callback de audio: output underflow
+2025-07-08 20:51:17,197 - core.audio_engine - ERROR - Error en callback de audio: output underflow
+2025-07-08 20:53:01,187 - main - INFO - Iniciando aplicación
+2025-07-08 20:53:02,557 - core.audio_engine - ERROR - Error en callback de audio: output underflow
+2025-07-08 20:53:02,558 - core.audio_engine - ERROR - Error en callback de audio: output underflow

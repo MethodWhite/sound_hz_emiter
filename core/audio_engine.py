@@ -1,143 +1,94 @@
 import numpy as np
-import time
+import sounddevice as sd
 import logging
-import threading
-import queue
-from .waveform_generators import WaveformType, WaveformGenerator
-from utils.constants import SAMPLE_RATE
-
-logger = logging.getLogger(__name__)
 
 class AudioEngine:
-    def __init__(self):
-        self.sample_rate = SAMPLE_RATE
-        self.is_playing = False
-        self.frequency = 440.0
-        self.amplitude = 0.5
-        self.wave_type = WaveformType.SINE
-        self.audio_thread = None
-        self.stop_event = threading.Event()
-        self.visualization_callback = None
-        self.audio_queue = queue.Queue()
+    def __init__(self, sample_rate=44100, buffer_size=1024):
+        self.sample_rate = sample_rate
+        self.buffer_size = buffer_size
         self.stream = None
-        self.device = None
-        self.frequencies = []  # Lista de frecuencias para mezclar
+        self.active_tones = {}
+        self.current_buffer = np.zeros(buffer_size, dtype=np.float32)
+        self.logger = logging.getLogger('core.audio_engine')
         
-    def _audio_thread_func(self):
-        try:
-            import sounddevice as sd
+    def start_stream(self):
+        if self.stream is None or not self.stream.active:
             try:
                 self.stream = sd.OutputStream(
                     samplerate=self.sample_rate,
+                    blocksize=self.buffer_size,
                     channels=1,
-                    dtype=np.float32
+                    dtype='float32',
+                    callback=self._audio_callback
                 )
                 self.stream.start()
-                
-                while not self.stop_event.is_set():
-                    try:
-                        samples = self.audio_queue.get(timeout=0.1)
-                        if self.stream and self.stream.active:
-                            self.stream.write(samples)
-                            
-                        # Notificar visualización
-                        if self.visualization_callback:
-                            self.visualization_callback(samples)
-                    except queue.Empty:
-                        continue
-            finally:
-                if self.stream:
-                    self.stream.stop()
-                    self.stream.close()
-        except ImportError:
-            logger.warning("SoundDevice no está disponible. La reproducción de audio no funcionará.")
+            except sd.PortAudioError as e:
+                self.logger.error(f"Error al iniciar stream de audio: {str(e)}")
+                # Intentar con un buffer size por defecto
+                try:
+                    self.logger.info("Intentando con buffer size por defecto...")
+                    self.stream = sd.OutputStream(
+                        samplerate=self.sample_rate,
+                        channels=1,
+                        dtype='float32',
+                        callback=self._audio_callback
+                    )
+                    self.stream.start()
+                except Exception as fallback_e:
+                    self.logger.critical(f"Error crítico de audio: {str(fallback_e)}")
+                    raise
+    
+    def stop_stream(self):
+        if self.stream is not None:
+            self.stream.stop()
+            self.stream = None
+    
+    def add_tone(self, tone_id, frequency, volume):
+        self.active_tones[tone_id] = (frequency, volume)
+    
+    def remove_tone(self, tone_id):
+        if tone_id in self.active_tones:
+            del self.active_tones[tone_id]
+    
+    def update_tone(self, tone_id, frequency, volume):
+        self.active_tones[tone_id] = (frequency, volume)
+    
+    def stop_all_tones(self):
+        self.active_tones.clear()
+    
+    def _audio_callback(self, outdata, frames, time, status):
+        if status:
+            self.logger.error(f"Error en callback de audio: {status}")
+        
+        try:
+            mixed_wave = self._generate_mixed_wave(frames)
+            outdata[:] = mixed_wave.reshape(-1, 1)
+            self.current_buffer = mixed_wave
         except Exception as e:
-            logger.error(f"Error en el hilo de audio: {str(e)}")
+            self.logger.error(f"Error en generación de audio: {str(e)}")
+            outdata.fill(0)
     
-    def _generate_samples(self, duration):
-        # Generar muestra para cada frecuencia y mezclarlas
-        mixed_samples = None
+    def _generate_mixed_wave(self, n_frames):
+        t = np.linspace(0, n_frames / self.sample_rate, n_frames, endpoint=False)
+        mixed_wave = np.zeros(n_frames, dtype=np.float32)
         
-        # Si no hay frecuencias definidas, usar la frecuencia principal
-        frequencies = self.frequencies if self.frequencies else [self.frequency]
+        for freq, vol in self.active_tones.values():
+            if freq > 0 and vol > 0:
+                wave = vol * np.sin(2 * np.pi * freq * t)
+                mixed_wave += wave.astype(np.float32)
         
-        for freq in frequencies:
-            samples = WaveformGenerator.generate_samples(
-                self.wave_type,
-                freq,
-                self.amplitude / len(frequencies),  # Normalizar amplitud
-                self.sample_rate,
-                duration
-            )
-            
-            if mixed_samples is None:
-                mixed_samples = samples
-            else:
-                mixed_samples += samples
-                
-        return mixed_samples
+        # Normalizar para evitar clipping
+        max_val = np.max(np.abs(mixed_wave)) if np.max(np.abs(mixed_wave)) > 0 else 1
+        return mixed_wave / max_val
     
-    def start_playback(self):
-        if self.is_playing:
-            return
-            
-        self.is_playing = True
-        self.stop_event.clear()
-        self.audio_thread = threading.Thread(target=self._audio_thread_func, daemon=True)
-        self.audio_thread.start()
+    def calculate_spectrum(self, data=None):
+        if data is None:
+            data = self.current_buffer
         
-        # Iniciar generación de muestras en otro hilo
-        threading.Thread(target=self._generate_audio_samples, daemon=True).start()
-    
-    def _generate_audio_samples(self):
-        chunk_duration = 0.1  # 100ms por chunk
-        while self.is_playing:
-            samples = self._generate_samples(chunk_duration)
-            self.audio_queue.put(samples)
-            time.sleep(chunk_duration * 0.8)  # Dejar un pequeño margen
-    
-    def stop_playback(self):
-        if not self.is_playing:
-            return
-            
-        self.is_playing = False
-        self.stop_event.set()
-        if self.audio_thread and self.audio_thread.is_alive():
-            self.audio_thread.join(timeout=1.0)
+        if len(data) == 0:
+            return np.array([]), np.array([])
         
-        # Limpiar cola
-        while not self.audio_queue.empty():
-            try:
-                self.audio_queue.get_nowait()
-            except queue.Empty:
-                break
-    
-    def set_waveform(self, wave_type):
-        self.wave_type = wave_type
-    
-    def set_frequency(self, frequency):
-        self.frequency = frequency
-    
-    def set_amplitude(self, amplitude):
-        self.amplitude = max(0.0, min(1.0, amplitude))
-    
-    def set_visualization_callback(self, callback):
-        self.visualization_callback = callback
-    
-    def add_frequency(self, frequency):
-        """Añade una nueva frecuencia a la mezcla"""
-        self.frequencies.append(frequency)
-    
-    def remove_frequency(self, frequency):
-        """Elimina una frecuencia de la mezcla"""
-        if frequency in self.frequencies:
-            self.frequencies.remove(frequency)
-    
-    def clear_frequencies(self):
-        """Limpia todas las frecuencias adicionales"""
-        self.frequencies = []
-    
-    def set_timer(self, duration):
-        """Configura un temporizador para detener la reproducción"""
-        self.timer_duration = duration
-        self.timer_start = time.time()
+        fft_data = np.fft.rfft(data)
+        magnitudes = np.abs(fft_data) / len(fft_data)
+        freqs = np.fft.rfftfreq(len(data), 1.0 / self.sample_rate)
+        return freqs, magnitudes
