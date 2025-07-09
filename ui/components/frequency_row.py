@@ -29,7 +29,7 @@ class FrequencyRow(QWidget):
         layout.setContentsMargins(5, 8, 5, 8)
         layout.setSpacing(10)
         
-        # Frequency control (estilo por defecto)
+        # Frequency control
         self.freq_spin = QDoubleSpinBox()
         self.freq_spin.setRange(1, 20000)
         self.freq_spin.setValue(initial_freq)
@@ -38,14 +38,14 @@ class FrequencyRow(QWidget):
         self.freq_spin.valueChanged.connect(self.on_frequency_changed)
         layout.addWidget(self.freq_spin)
         
-        # Wave type selector (estilo por defecto)
+        # Wave type selector
         self.wave_combo = QComboBox()
         self.update_wave_types()
         self.wave_combo.setFixedWidth(120)
         self.wave_combo.currentTextChanged.connect(self.on_wave_type_changed)
         layout.addWidget(self.wave_combo)
         
-        # Volume slider (estilo por defecto)
+        # Volume slider
         self.volume_slider = QSlider(Qt.Horizontal)
         self.volume_slider.setRange(0, 100)
         self.volume_slider.setValue(50)
@@ -53,7 +53,7 @@ class FrequencyRow(QWidget):
         layout.addWidget(QLabel("Vol:"))
         layout.addWidget(self.volume_slider)
         
-        # Panning control (estilo por defecto)
+        # Panning control
         self.pan_slider = QSlider(Qt.Horizontal)
         self.pan_slider.setRange(-100, 100)
         self.pan_slider.setValue(0)
@@ -62,7 +62,7 @@ class FrequencyRow(QWidget):
         layout.addWidget(self.pan_slider)
         layout.addWidget(QLabel("R"))
         
-        # Play/Pause button (estilo personalizado)
+        # Play/Pause button
         self.play_pause_btn = QPushButton()
         self.play_pause_btn.setIcon(QIcon.fromTheme("media-playback-start"))
         self.play_pause_btn.setFixedSize(30, 30)
@@ -70,6 +70,7 @@ class FrequencyRow(QWidget):
             QPushButton {
                 background-color: #4c6cfb; 
                 color: white;
+                border: none;
                 border-radius: 4px;
             }
             QPushButton:hover {
@@ -79,7 +80,7 @@ class FrequencyRow(QWidget):
         self.play_pause_btn.clicked.connect(self.on_play_pause)
         layout.addWidget(self.play_pause_btn)
         
-        # Stop button (estilo personalizado)
+        # Stop button
         self.stop_btn = QPushButton()
         self.stop_btn.setIcon(QIcon.fromTheme("media-playback-stop"))
         self.stop_btn.setFixedSize(30, 30)
@@ -87,6 +88,7 @@ class FrequencyRow(QWidget):
             QPushButton {
                 background-color: #4c6cfb; 
                 color: white;
+                border: none;
                 border-radius: 4px;
             }
             QPushButton:hover {
@@ -97,7 +99,7 @@ class FrequencyRow(QWidget):
         self.stop_btn.clicked.connect(self.on_stop)
         layout.addWidget(self.stop_btn)
         
-        # Remove button (estilo personalizado)
+        # Remove button
         self.remove_btn = QPushButton("×")
         self.remove_btn.setFixedSize(30, 30)
         self.remove_btn.setStyleSheet("""
@@ -105,6 +107,7 @@ class FrequencyRow(QWidget):
                 background-color: #f44336; 
                 color: white;
                 font-weight: bold;
+                border: none;
                 border-radius: 4px;
                 font-size: 14px;
             }
@@ -152,11 +155,19 @@ class FrequencyRow(QWidget):
         self.stopClicked.emit(self.row_id)
         
     def set_light_theme(self):
+        """Restablece los estilos a los valores por defecto del sistema"""
         self.setStyleSheet("")
-        for child in self.findChildren((QDoubleSpinBox, QComboBox, QLabel)):
-            child.setStyleSheet("")
+        
+        # Resetear estilos para cada tipo de widget por separado
+        for spinbox in self.findChildren(QDoubleSpinBox):
+            spinbox.setStyleSheet("")
+        for combobox in self.findChildren(QComboBox):
+            combobox.setStyleSheet("")
+        for label in self.findChildren(QLabel):
+            label.setStyleSheet("")
         
     def set_dark_theme(self):
+        """Aplica estilos para el tema oscuro"""
         self.setStyleSheet("""
             QWidget {
                 background-color: #353535;
