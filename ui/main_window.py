@@ -1,10 +1,9 @@
 from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                               QStatusBar, QLabel, QToolButton, QScrollArea, 
-                              QComboBox, QFrame, QApplication)
+                              QComboBox, QApplication)
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QIcon, QPalette, QColor, QFont
 
-# Importaciones absolutas desde el paquete ui.components
 from ui.components.timer_control import TimerControl
 from ui.components.frequency_control import FrequencyControl
 from core.audio_service import AudioService
@@ -15,7 +14,7 @@ class MainWindow(QMainWindow):
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._initialized = True  # Bandera para evitar doble inicialización
+        self._initialized = True
         self.setWindowTitle("Sound Hz Emitter")
         self.setGeometry(100, 100, 900, 600)
         self.is_dark_theme = False
@@ -29,18 +28,16 @@ class MainWindow(QMainWindow):
         # Diccionario de traducciones
         self.translations = {
             "en": {
-                "title": "Sound Hz Emitter",
+                "title": "Sound Frequency Emitter",
                 "controls": "Frequency Controls",
                 "timer": "Timer Control",
-                "add_freq": "Add Frequency",
-                "spectrum": "Real-time Spectrum"
+                "add_freq": "Add Frequency"
             },
             "es": {
-                "title": "Emisor de Hz",
+                "title": "Emisor de Frecuencias",
                 "controls": "Controles de Frecuencia",
                 "timer": "Control de Tiempo",
-                "add_freq": "Añadir Frecuencia",
-                "spectrum": "Espectro en Tiempo Real"
+                "add_freq": "Añadir Frecuencia"
             }
         }
         
@@ -88,9 +85,13 @@ class MainWindow(QMainWindow):
         # Control de frecuencias con scroll
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.NoFrame)
-
-
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setStyleSheet("background: transparent; border: none;")
+        self.frequency_control = FrequencyControl(self.audio_service)
+        scroll.setWidget(self.frequency_control)
+        main_layout.addWidget(scroll, 1)
+        
+        # Crea el frequency_control antes de asignarlo al scroll
         self.frequency_control = FrequencyControl(self.audio_service)
         scroll.setWidget(self.frequency_control)
         main_layout.addWidget(scroll, 1)
@@ -152,6 +153,6 @@ class MainWindow(QMainWindow):
         QApplication.instance().setPalette(palette)
 
         # Aplicar estilos específicos
-        self.title_label.setStyleSheet("font-size: 16px; color: white;")
+        self.title_label.setStyleSheet("font-size: 16px; color: #64b4ff;")
         self.frequency_control.set_dark_theme()
         self.timer_control.set_dark_theme()
