@@ -1,19 +1,16 @@
-from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,  # Añade QHBoxLayout aquí
-    QApplication, QStatusBar, QSplitter, QLabel,
-    QToolButton
-)
+from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+                              QApplication, QStatusBar, QSplitter, QLabel,
+                              QToolButton, QScrollArea)
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QIcon, QPalette, QColor
-
+from PySide6.QtGui import QIcon, QPalette, QColor, QPixmap
 from ui.components.frequency_control import FrequencyControl
 from ui.components.timer_control import TimerControl
-from ui.components.spectrum_widget import SpectrumWidget
+from ui.components.waveform_widget import WaveformWidget
 from core.audio_service import AudioService
-
+import os
 
 class MainWindow(QMainWindow):
-    theme_changed = Signal(bool)  # True for dark, False for light
+    theme_changed = Signal(bool)
     
     def __init__(self):
         super().__init__()
@@ -36,16 +33,18 @@ class MainWindow(QMainWindow):
         
         # Header
         header = QWidget()
-        header_layout = QHBoxLayout(header)  # Ahora QHBoxLayout está definido
+        header_layout = QHBoxLayout(header)
         
         # Title
         self.title_label = QLabel("Sound Frequency Emitter")
         self.title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
         header_layout.addWidget(self.title_label)
         
-        # Theme toggle button
+        # Theme toggle button with icons
         self.theme_btn = QToolButton()
-        self.theme_btn.setIcon(QIcon.fromTheme("weather-sunny"))
+        self.sun_icon = QIcon(os.path.join("icons", "sun.png"))  # Asegúrate de tener estos iconos
+        self.moon_icon = QIcon(os.path.join("icons", "moon.png"))
+        self.theme_btn.setIcon(self.sun_icon)
         self.theme_btn.clicked.connect(self.toggle_theme)
         header_layout.addWidget(self.theme_btn, alignment=Qt.AlignRight)
         
@@ -62,15 +61,18 @@ class MainWindow(QMainWindow):
         self.timer_control = TimerControl(self.audio_service)
         control_layout.addWidget(self.timer_control)
         
-        # Frequency control
+        # Frequency control with scroll
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
         self.frequency_control = FrequencyControl(self.audio_service)
-        control_layout.addWidget(self.frequency_control)
+        scroll.setWidget(self.frequency_control)
+        control_layout.addWidget(scroll)
         
         splitter.addWidget(control_panel)
         
-        # Spectrum
-        self.spectrum_widget = SpectrumWidget()
-        splitter.addWidget(self.spectrum_widget)
+        # Waveform display
+        self.waveform_widget = WaveformWidget()
+        splitter.addWidget(self.waveform_widget)
         
         main_layout.addWidget(splitter)
         
@@ -78,14 +80,17 @@ class MainWindow(QMainWindow):
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         
+        # Connect audio service to waveform display
+        self.audio_service.audio_updated.connect(self.waveform_widget.update_waveform)
+        
     def toggle_theme(self):
         self.is_dark_theme = not self.is_dark_theme
         if self.is_dark_theme:
             self.apply_dark_theme()
-            self.theme_btn.setIcon(QIcon.fromTheme("weather-sunny"))
+            self.theme_btn.setIcon(self.sun_icon)
         else:
             self.apply_light_theme()
-            self.theme_btn.setIcon(QIcon.fromTheme("weather-night"))
+            self.theme_btn.setIcon(self.moon_icon)
         self.theme_changed.emit(self.is_dark_theme)
         
     def apply_light_theme(self):
