@@ -1,6 +1,17 @@
-numpy
-sounddevice
-PySide6
-pyqtgraph
-pytest
-scipy
+# Sound Hz Emitter v2.0 - Lista de Dependencias
+
+# OBLIGATORIO - Interfaz grafica
+PySide6>=6.5.0
+
+# RECOMENDADO - Audio real y calculos matematicos  
+numpy>=1.21.0
+sounddevice>=0.4.6
+scipy>=1.9.0
+
+# OPCIONAL - Visualizacion avanzada
+pyqtgraph>=0.13.3
+
+# DESARROLLO - Herramientas de desarrollo
+pytest>=7.0.0
+black>=22.0.0
+isort>=5.10.0
