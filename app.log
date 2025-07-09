@@ -4,3 +4,42 @@
 2025-07-08 20:53:01,187 - main - INFO - Iniciando aplicación
 2025-07-08 20:53:02,557 - core.audio_engine - ERROR - Error en callback de audio: output underflow
 2025-07-08 20:53:02,558 - core.audio_engine - ERROR - Error en callback de audio: output underflow
+2025-07-08 20:54:41,550 - main - INFO - Iniciando aplicación
+2025-07-08 20:54:43,020 - core.audio_engine - ERROR - Error en callback de audio: output underflow
+2025-07-08 20:54:43,025 - core.audio_engine - ERROR - Error en callback de audio: output underflow
+2025-07-08 20:58:37,360 - main - INFO - Iniciando aplicación
+2025-07-08 20:58:39,173 - core.audio_engine - ERROR - Error en callback de audio: output underflow
+2025-07-08 20:58:39,175 - core.audio_engine - ERROR - Error en callback de audio: output underflow
+2025-07-08 21:04:25,489 - main - INFO - Iniciando aplicación
+2025-07-08 21:04:25,947 - main - ERROR - Error crítico en la aplicación
+Traceback (most recent call last):
+  File "C:\Users\cubop\Projects\python\sound_hz_emiter\main.py", line 30, in main
+    main_window = MainWindow()
+  File "C:\Users\cubop\Projects\python\sound_hz_emiter\ui\main_window.py", line 24, in __init__
+    self.audio_service = AudioService()
+                         ~~~~~~~~~~~~^^
+  File "C:\Users\cubop\Projects\python\sound_hz_emiter\core\audio_service.py", line 9, in __init__
+    from core.audio_engine import AudioEngine
+  File "C:\Users\cubop\Projects\python\sound_hz_emiter\core\audio_engine.py", line 4, in <module>
+    from scipy import signal
+ModuleNotFoundError: No module named 'scipy'
+2025-07-08 21:18:03,973 - main - INFO - Iniciando aplicación
+2025-07-08 21:18:12,068 - main - ERROR - Error crítico en la aplicación
+Traceback (most recent call last):
+  File "C:\Users\cubop\Projects\python\sound_hz_emiter\main.py", line 36, in main
+    main_window = MainWindow()
+  File "C:\Users\cubop\Projects\python\sound_hz_emiter\ui\main_window.py", line 38, in __init__
+    self.frequency_control = FrequencyControl(self.audio_service)
+                             ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cubop\Projects\python\sound_hz_emiter\ui\components\frequency_control.py", line 42, in __init__
+    self.add_frequency_row()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\cubop\Projects\python\sound_hz_emiter\ui\components\frequency_control.py", line 48, in add_frequency_row
+    row = FrequencyRow(row_id, freq, volume, wave_type, panning)
+  File "C:\Users\cubop\Projects\python\sound_hz_emiter\ui\components\frequency_row.py", line 22, in __init__
+    freq_layout = QVBoxLayout()
+                  ^^^^^^^^^^^
+NameError: name 'QVBoxLayout' is not defined. Did you mean: 'QHBoxLayout'?
+2025-07-08 21:26:14,359 - main - INFO - Iniciando aplicación
+2025-07-08 21:26:17,369 - core.audio_engine - ERROR - Error en callback de audio: output underflow
+2025-07-08 21:26:17,371 - core.audio_engine - ERROR - Error en callback de audio: output underflow

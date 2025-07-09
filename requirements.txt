@@ -3,3 +3,4 @@ sounddevice
 PySide6
 pyqtgraph
 pytest
+scipy

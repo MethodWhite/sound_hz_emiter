@@ -1,5 +1,6 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QSpinBox
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QSpinBox, QFrame
 from PySide6.QtCore import QTimer, Qt
+from PySide6.QtGui import QFont
 
 class TimerControl(QWidget):
     def __init__(self, audio_service):
@@ -10,11 +11,19 @@ class TimerControl(QWidget):
         self.remaining_time = 0
         
         layout = QVBoxLayout()
+        layout.setContentsMargins(0, 10, 0, 10)
         
         # Título
         title = QLabel("Temporizador")
-        title.setStyleSheet("font-weight: bold; font-size: 14px;")
+        title.setStyleSheet("font-weight: bold; font-size: 16px; color: #333;")
         layout.addWidget(title)
+        
+        # Separador
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setFrameShadow(QFrame.Shadow.Sunken)
+        separator.setStyleSheet("background-color: #ddd;")
+        layout.addWidget(separator)
         
         # Controles de tiempo
         time_layout = QHBoxLayout()
@@ -22,25 +31,34 @@ class TimerControl(QWidget):
         
         self.time_input = QSpinBox()
         self.time_input.setRange(1, 3600)
-        self.time_input.setValue(60)
+        self.time_input.setValue(300)  # 5 minutos por defecto
         self.time_input.setSuffix(" seg")
+        self.time_input.setStyleSheet("padding: 5px;")
         time_layout.addWidget(self.time_input)
         
         self.start_button = QPushButton("Iniciar")
+        self.start_button.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 5px;")
         self.start_button.clicked.connect(self.start_timer)
         time_layout.addWidget(self.start_button)
         
         self.stop_button = QPushButton("Detener Todo")
+        self.stop_button.setStyleSheet("background-color: #f44336; color: white; font-weight: bold; padding: 5px;")
         self.stop_button.clicked.connect(self.stop_all)
         time_layout.addWidget(self.stop_button)
         
         layout.addLayout(time_layout)
         
         # Display
-        self.timer_label = QLabel("00:00")
+        timer_display_layout = QHBoxLayout()
+        timer_display_layout.addStretch()
+        
+        self.timer_label = QLabel("05:00")
         self.timer_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.timer_label.setStyleSheet("font-size: 32px; font-weight: bold; color: #2E7D32;")
-        layout.addWidget(self.timer_label)
+        self.timer_label.setStyleSheet("font-size: 42px; font-weight: bold; color: #2E7D32; padding: 10px;")
+        timer_display_layout.addWidget(self.timer_label)
+        
+        timer_display_layout.addStretch()
+        layout.addLayout(timer_display_layout)
         
         self.setLayout(layout)
     
@@ -66,8 +84,9 @@ class TimerControl(QWidget):
     def update_display(self):
         mins, secs = divmod(self.remaining_time, 60)
         self.timer_label.setText(f"{mins:02d}:{secs:02d}")
+        
         # Cambiar color cuando el tiempo está por acabarse
-        if self.remaining_time < 10:
-            self.timer_label.setStyleSheet("font-size: 32px; font-weight: bold; color: #C62828;")
+        if self.remaining_time < 60:  # Menos de 1 minuto
+            self.timer_label.setStyleSheet("font-size: 42px; font-weight: bold; color: #C62828; padding: 10px;")
         else:
-            self.timer_label.setStyleSheet("font-size: 32px; font-weight: bold; color: #2E7D32;")
+            self.timer_label.setStyleSheet("font-size: 42px; font-weight: bold; color: #2E7D32; padding: 10px;")

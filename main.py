@@ -1,6 +1,7 @@
 import sys
 import logging
 from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QFont
 from ui.main_window import MainWindow
 
 def setup_logging():
@@ -27,6 +28,11 @@ def main():
     
     try:
         app = QApplication(sys.argv)
+        
+        # Configurar fuente global
+        font = QFont("Segoe UI", 10)
+        app.setFont(font)
+        
         main_window = MainWindow()
         main_window.show()
         sys.exit(app.exec())

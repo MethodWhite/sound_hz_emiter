@@ -10,11 +10,31 @@ class AudioService(QObject):
         self.engine = AudioEngine(sample_rate, buffer_size)
         self.engine.start_stream()
     
-    def add_tone(self, tone_id, frequency, volume):
-        self.engine.add_tone(tone_id, frequency, volume)
+    def add_tone(self, tone_id, frequency, volume, wave_type="Seno", panning=0.0):
+        self.engine.add_tone(tone_id, frequency, volume, wave_type, panning)
     
-    def update_tone(self, tone_id, frequency, volume):
-        self.engine.update_tone(tone_id, frequency, volume)
+    def update_tone(self, tone_id, frequency, volume, wave_type="Seno", panning=0.0):
+        self.engine.update_tone(tone_id, frequency, volume, wave_type, panning)
+    
+    def update_frequency(self, tone_id, frequency):
+        if tone_id in self.engine.active_tones:
+            _, vol, wave_type, panning = self.engine.active_tones[tone_id]
+            self.engine.active_tones[tone_id] = (frequency, vol, wave_type, panning)
+    
+    def update_volume(self, tone_id, volume):
+        if tone_id in self.engine.active_tones:
+            freq, _, wave_type, panning = self.engine.active_tones[tone_id]
+            self.engine.active_tones[tone_id] = (freq, volume, wave_type, panning)
+    
+    def update_wave_type(self, tone_id, wave_type):
+        if tone_id in self.engine.active_tones:
+            freq, vol, _, panning = self.engine.active_tones[tone_id]
+            self.engine.active_tones[tone_id] = (freq, vol, wave_type, panning)
+    
+    def update_panning(self, tone_id, panning):
+        if tone_id in self.engine.active_tones:
+            freq, vol, wave_type, _ = self.engine.active_tones[tone_id]
+            self.engine.active_tones[tone_id] = (freq, vol, wave_type, panning)
     
     def remove_tone(self, tone_id):
         self.engine.remove_tone(tone_id)
