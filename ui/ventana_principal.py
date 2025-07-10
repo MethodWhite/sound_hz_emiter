@@ -1,4 +1,4 @@
-"""Ventana principal mejorada con audio real, temas y controles individuales"""
+"""Ventana principal mejorada con audio real, temas, controles individuales y panning estéreo"""
 
 import sys
 import numpy as np
@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QPushButton, QSpinBox, QSlider, QComboBox, QCheckBox,
     QFrame, QGroupBox, QStatusBar, QMessageBox, QTextEdit,
-    QScrollArea, QSizePolicy, QSpacerItem
+    QScrollArea, QSizePolicy, QSpacerItem, QGridLayout
 )
 from PySide6.QtCore import Qt, Signal, QTimer, QThread
 from PySide6.QtGui import QFont, QPalette, QColor
@@ -19,7 +19,7 @@ except ImportError:
     AUDIO_DISPONIBLE = False
 
 class AudioThread(QThread):
-    """Hilo para generación de audio en tiempo real"""
+    """Hilo para generación de audio en tiempo real con panning estéreo"""
     
     def __init__(self, sample_rate=44100):
         super().__init__()
@@ -28,13 +28,14 @@ class AudioThread(QThread):
         self.tonos_activos = {}
         self.stream = None
         
-    def add_tone(self, tone_id, frequency, volume, wave_type="sine", active=True):
-        """Añade o actualiza un tono"""
+    def add_tone(self, tone_id, frequency, volume, wave_type="sine", active=True, panning=0.0):
+        """Añade o actualiza un tono con panning"""
         self.tonos_activos[tone_id] = {
             'frequency': frequency,
             'volume': volume,
             'wave_type': wave_type,
             'active': active,
+            'panning': panning,  # -1.0 = izquierda, 0.0 = centro, 1.0 = derecha
             'phase': 0.0
         }
         
@@ -67,12 +68,13 @@ class AudioThread(QThread):
         return wave, t[-1] if len(t) > 0 else 0
     
     def audio_callback(self, outdata, frames, time, status):
-        """Callback para generación de audio"""
+        """Callback para generación de audio con panning estéreo"""
         if status:
             print(f"Audio status: {status}")
             
-        # Inicializar buffer
-        buffer = np.zeros(frames, dtype=np.float32)
+        # Inicializar buffers estéreo
+        buffer_left = np.zeros(frames, dtype=np.float32)
+        buffer_right = np.zeros(frames, dtype=np.float32)
         
         # Generar y mezclar tonos activos
         for tone_id, tone_data in self.tonos_activos.items():
@@ -87,21 +89,33 @@ class AudioThread(QThread):
                 # Aplicar volumen
                 wave = wave * tone_data['volume']
                 
-                # Mezclar con buffer
-                buffer += wave
+                # Aplicar panning estéreo
+                panning = tone_data['panning']  # -1.0 a 1.0
+                
+                # Calcular ganancia para cada canal
+                left_gain = np.sqrt((1.0 - panning) / 2.0) if panning >= 0 else 1.0
+                right_gain = np.sqrt((1.0 + panning) / 2.0) if panning <= 0 else 1.0
+                
+                # Mezclar con buffers
+                buffer_left += wave * left_gain
+                buffer_right += wave * right_gain
                 
                 # Actualizar fase
                 tone_data['phase'] = new_phase
         
         # Normalizar para evitar clipping
         if len(self.tonos_activos) > 0:
-            max_amplitude = np.max(np.abs(buffer))
+            max_amplitude_left = np.max(np.abs(buffer_left)) if len(buffer_left) > 0 else 0
+            max_amplitude_right = np.max(np.abs(buffer_right)) if len(buffer_right) > 0 else 0
+            max_amplitude = max(max_amplitude_left, max_amplitude_right)
+            
             if max_amplitude > 0.8:
-                buffer = buffer * 0.8 / max_amplitude
+                buffer_left = buffer_left * 0.8 / max_amplitude
+                buffer_right = buffer_right * 0.8 / max_amplitude
         
-        # Copiar a salida (mono a estéreo)
-        outdata[:, 0] = buffer
-        outdata[:, 1] = buffer
+        # Copiar a salida estéreo
+        outdata[:, 0] = buffer_left
+        outdata[:, 1] = buffer_right
     
     def start_audio(self):
         """Inicia el stream de audio"""
@@ -139,7 +153,7 @@ class AudioThread(QThread):
         print("Audio detenido")
 
 class MotorAudioReal:
-    """Motor de audio real usando sounddevice"""
+    """Motor de audio real usando sounddevice con panning"""
     
     def __init__(self):
         self.audio_thread = AudioThread()
@@ -168,11 +182,11 @@ class MotorAudioReal:
         self.reproduciendo = False
         print("Audio detenido")
         
-    def agregar_tono(self, id_tono, frecuencia, volumen, tipo_onda="seno"):
-        """Agrega un tono"""
+    def agregar_tono(self, id_tono, frecuencia, volumen, tipo_onda="seno", panning=0.0):
+        """Agrega un tono con panning"""
         if AUDIO_DISPONIBLE:
-            self.audio_thread.add_tone(id_tono, frecuencia, volumen, tipo_onda)
-        print(f"Tono {id_tono} agregado: {frecuencia} Hz")
+            self.audio_thread.add_tone(id_tono, frecuencia, volumen, tipo_onda, True, panning)
+        print(f"Tono {id_tono} agregado: {frecuencia} Hz, Panning: {panning}")
         
     def eliminar_tono(self, id_tono):
         """Elimina un tono"""
@@ -192,6 +206,8 @@ class MotorAudioReal:
                 tone_data['wave_type'] = parametros['tipo_onda']
             if 'activo' in parametros:
                 tone_data['active'] = parametros['activo']
+            if 'panning' in parametros:
+                tone_data['panning'] = parametros['panning']
         
     def set_tono_activo(self, id_tono, activo):
         """Activa/desactiva un tono"""
@@ -376,7 +392,7 @@ class ThemeManager:
         """)
 
 class ControlTonoMejorado(QFrame):
-    """Widget mejorado para controlar un tono individual con play/pause/stop"""
+    """Widget mejorado para controlar un tono individual con panning estéreo"""
     
     tono_modificado = Signal(int, dict)
     tono_eliminado = Signal(int)
@@ -390,31 +406,31 @@ class ControlTonoMejorado(QFrame):
     def configurar_interfaz(self, frecuencia_inicial):
         """Configura la interfaz mejorada del control de tono"""
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(8)
+        layout.setContentsMargins(15, 15, 15, 15)
+        layout.setSpacing(10)
         
-        # Cabecera con titulo, controles y eliminar
+        # Cabecera con titulo y controles
         cabecera = QHBoxLayout()
         
         # Título
         titulo = QLabel(f"♪ Tono {self.id_tono}")
-        titulo.setStyleSheet("font-weight: bold; font-size: 13px; color: #0078d4;")
+        titulo.setStyleSheet("font-weight: bold; font-size: 14px; color: #0078d4;")
         cabecera.addWidget(titulo)
         
         # Espaciador
         cabecera.addStretch()
         
-        # Controles de reproducción individuales
+        # Controles de reproducción mejorados
         self.btn_play_pause = QPushButton("▶")
-        self.btn_play_pause.setMaximumSize(30, 30)
+        self.btn_play_pause.setFixedSize(35, 35)
         self.btn_play_pause.setStyleSheet("""
             QPushButton {
                 background-color: #28a745;
                 color: white;
                 border: none;
-                border-radius: 15px;
+                border-radius: 17px;
                 font-weight: bold;
-                font-size: 12px;
+                font-size: 14px;
             }
             QPushButton:hover {
                 background-color: #218838;
@@ -424,18 +440,18 @@ class ControlTonoMejorado(QFrame):
         cabecera.addWidget(self.btn_play_pause)
         
         self.btn_stop = QPushButton("⏹")
-        self.btn_stop.setMaximumSize(30, 30)
+        self.btn_stop.setFixedSize(35, 35)
         self.btn_stop.setStyleSheet("""
             QPushButton {
-                background-color: #ffc107;
-                color: black;
+                background-color: #dc3545;
+                color: white;
                 border: none;
-                border-radius: 15px;
+                border-radius: 17px;
                 font-weight: bold;
-                font-size: 12px;
+                font-size: 14px;
             }
             QPushButton:hover {
-                background-color: #e0a800;
+                background-color: #c82333;
             }
         """)
         self.btn_stop.clicked.connect(self.stop_tone)
@@ -443,18 +459,18 @@ class ControlTonoMejorado(QFrame):
         
         # Botón eliminar
         btn_eliminar = QPushButton("✕")
-        btn_eliminar.setMaximumSize(30, 30)
+        btn_eliminar.setFixedSize(35, 35)
         btn_eliminar.setStyleSheet("""
             QPushButton {
-                background-color: #dc3545;
+                background-color: #6c757d;
                 color: white;
                 border: none;
-                border-radius: 15px;
+                border-radius: 17px;
                 font-weight: bold;
-                font-size: 12px;
+                font-size: 14px;
             }
             QPushButton:hover {
-                background-color: #c82333;
+                background-color: #545b62;
             }
         """)
         btn_eliminar.clicked.connect(lambda: self.tono_eliminado.emit(self.id_tono))
@@ -462,94 +478,169 @@ class ControlTonoMejorado(QFrame):
         
         layout.addLayout(cabecera)
         
-        # Primera fila de controles
-        controles_1 = QHBoxLayout()
+        # Grid de controles mejorado
+        grid_controles = QGridLayout()
+        grid_controles.setSpacing(10)
         
         # Frecuencia
-        grupo_freq = QVBoxLayout()
-        etiqueta_freq = QLabel("Frecuencia")
-        etiqueta_freq.setStyleSheet("font-weight: bold; font-size: 10px;")
-        grupo_freq.addWidget(etiqueta_freq)
+        freq_label = QLabel("Frecuencia (Hz)")
+        freq_label.setStyleSheet("font-weight: bold; font-size: 11px;")
+        grid_controles.addWidget(freq_label, 0, 0)
         
         self.spin_frecuencia = QSpinBox()
         self.spin_frecuencia.setRange(20, 20000)
         self.spin_frecuencia.setValue(frecuencia_inicial)
         self.spin_frecuencia.setSuffix(" Hz")
-        self.spin_frecuencia.setMinimumWidth(90)
+        self.spin_frecuencia.setFixedWidth(120)
         self.spin_frecuencia.valueChanged.connect(self.emitir_cambios)
-        grupo_freq.addWidget(self.spin_frecuencia)
-        
-        controles_1.addLayout(grupo_freq)
+        grid_controles.addWidget(self.spin_frecuencia, 1, 0)
         
         # Volumen
-        grupo_vol = QVBoxLayout()
-        etiqueta_vol = QLabel("Volumen")
-        etiqueta_vol.setStyleSheet("font-weight: bold; font-size: 10px;")
-        grupo_vol.addWidget(etiqueta_vol)
+        vol_label = QLabel("Volumen (%)")
+        vol_label.setStyleSheet("font-weight: bold; font-size: 11px;")
+        grid_controles.addWidget(vol_label, 0, 1)
+        
+        # Contenedor de volumen con sliders visibles
+        vol_container = QVBoxLayout()
+        vol_container.setSpacing(5)
         
         self.slider_volumen = QSlider(Qt.Horizontal)
         self.slider_volumen.setRange(0, 100)
-        self.slider_volumen.setValue(30)  # Volumen inicial más bajo
-        self.slider_volumen.setMinimumWidth(100)
+        self.slider_volumen.setValue(30)
+        self.slider_volumen.setMinimumWidth(120)
+        self.slider_volumen.setMinimumHeight(20)
+        self.slider_volumen.setStyleSheet("""
+            QSlider::groove:horizontal {
+                border: 1px solid #999999;
+                height: 8px;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #B1B1B1, stop:1 #c4c4c4);
+                margin: 2px 0;
+                border-radius: 4px;
+            }
+            QSlider::handle:horizontal {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #b4b4b4, stop:1 #8f8f8f);
+                border: 1px solid #5c5c5c;
+                width: 18px;
+                margin: -2px 0;
+                border-radius: 9px;
+            }
+            QSlider::handle:horizontal:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #0078d4, stop:1 #106ebe);
+            }
+        """)
         self.slider_volumen.valueChanged.connect(self.emitir_cambios)
-        grupo_vol.addWidget(self.slider_volumen)
+        vol_container.addWidget(self.slider_volumen)
         
         self.etiqueta_volumen = QLabel("30%")
         self.etiqueta_volumen.setAlignment(Qt.AlignCenter)
-        self.etiqueta_volumen.setStyleSheet("font-size: 9px;")
-        grupo_vol.addWidget(self.etiqueta_volumen)
+        self.etiqueta_volumen.setStyleSheet("font-size: 10px; font-weight: bold;")
+        vol_container.addWidget(self.etiqueta_volumen)
         
-        controles_1.addLayout(grupo_vol)
+        vol_widget = QWidget()
+        vol_widget.setLayout(vol_container)
+        vol_widget.setMinimumWidth(140)
+        grid_controles.addWidget(vol_widget, 1, 1)
         
-        layout.addLayout(controles_1)
+        # Panning Estéreo (NUEVO)
+        pan_label = QLabel("Panning L/R")
+        pan_label.setStyleSheet("font-weight: bold; font-size: 11px;")
+        grid_controles.addWidget(pan_label, 2, 0)
         
-        # Segunda fila de controles
-        controles_2 = QHBoxLayout()
+        # Contenedor de panning con sliders visibles
+        pan_container = QVBoxLayout()
+        pan_container.setSpacing(5)
+        
+        self.slider_panning = QSlider(Qt.Horizontal)
+        self.slider_panning.setRange(-100, 100)
+        self.slider_panning.setValue(0)
+        self.slider_panning.setMinimumWidth(120)
+        self.slider_panning.setMinimumHeight(20)
+        self.slider_panning.setStyleSheet("""
+            QSlider::groove:horizontal {
+                border: 1px solid #999999;
+                height: 8px;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #ff6b6b, stop:0.5 #4ecdc4, stop:1 #45b7d1);
+                margin: 2px 0;
+                border-radius: 4px;
+            }
+            QSlider::handle:horizontal {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #b4b4b4, stop:1 #8f8f8f);
+                border: 1px solid #5c5c5c;
+                width: 18px;
+                margin: -2px 0;
+                border-radius: 9px;
+            }
+            QSlider::handle:horizontal:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #6f42c1, stop:1 #5a359a);
+            }
+        """)
+        self.slider_panning.valueChanged.connect(self.emitir_cambios)
+        pan_container.addWidget(self.slider_panning)
+        
+        self.etiqueta_panning = QLabel("Centro")
+        self.etiqueta_panning.setAlignment(Qt.AlignCenter)
+        self.etiqueta_panning.setStyleSheet("font-size: 10px; font-weight: bold;")
+        pan_container.addWidget(self.etiqueta_panning)
+        
+        pan_widget = QWidget()
+        pan_widget.setLayout(pan_container)
+        pan_widget.setMinimumWidth(140)
+        grid_controles.addWidget(pan_widget, 2, 1)
         
         # Tipo de onda
-        grupo_onda = QVBoxLayout()
-        etiqueta_onda = QLabel("Tipo de Onda")
-        etiqueta_onda.setStyleSheet("font-weight: bold; font-size: 10px;")
-        grupo_onda.addWidget(etiqueta_onda)
+        onda_label = QLabel("Tipo de Onda")
+        onda_label.setStyleSheet("font-weight: bold; font-size: 11px;")
+        grid_controles.addWidget(onda_label, 0, 2)
         
         self.combo_onda = QComboBox()
         self.combo_onda.addItems(["Seno", "Cuadrada", "Triangular", "Sierra"])
-        self.combo_onda.setMinimumWidth(100)
+        self.combo_onda.setFixedWidth(120)
         self.combo_onda.currentTextChanged.connect(self.emitir_cambios)
-        grupo_onda.addWidget(self.combo_onda)
-        
-        controles_2.addLayout(grupo_onda)
+        grid_controles.addWidget(self.combo_onda, 1, 2)
         
         # Estado
-        grupo_estado = QVBoxLayout()
-        etiqueta_estado = QLabel("Estado")
-        etiqueta_estado.setStyleSheet("font-weight: bold; font-size: 10px;")
-        grupo_estado.addWidget(etiqueta_estado)
+        estado_label = QLabel("Estado")
+        estado_label.setStyleSheet("font-weight: bold; font-size: 11px;")
+        grid_controles.addWidget(estado_label, 2, 2)
         
         self.etiqueta_estado = QLabel("⏸ Pausado")
-        self.etiqueta_estado.setStyleSheet("font-size: 10px; color: #666;")
-        grupo_estado.addWidget(self.etiqueta_estado)
+        self.etiqueta_estado.setStyleSheet("font-size: 11px; color: #666;")
+        grid_controles.addWidget(self.etiqueta_estado, 3, 2)
         
-        controles_2.addLayout(grupo_estado)
-        
-        layout.addLayout(controles_2)
+        layout.addLayout(grid_controles)
         
         # Checkbox master
         self.check_activo = QCheckBox("🔊 Tono Habilitado")
         self.check_activo.setChecked(True)
-        self.check_activo.setStyleSheet("font-weight: bold; color: #28a745;")
+        self.check_activo.setStyleSheet("font-weight: bold; color: #28a745; font-size: 12px;")
         self.check_activo.toggled.connect(self.emitir_cambios)
         layout.addWidget(self.check_activo)
         
-        # Estilo del frame
+        # Estilo del frame mejorado
         self.setFrameStyle(QFrame.Box)
-        self.setFixedHeight(180)
+        self.setFixedHeight(240)  # Aumentar altura para acomodar sliders
+        self.setMinimumWidth(500)  # Aumentar ancho mínimo
         self.setStyleSheet("""
             QFrame {
                 border: 2px solid #e0e0e0;
-                border-radius: 10px;
+                border-radius: 12px;
                 background-color: #fafafa;
-                margin: 2px;
+                margin: 3px;
+            }
+            QSlider {
+                background: transparent;
+            }
+            QSpinBox {
+                border: 1px solid #cccccc;
+                border-radius: 4px;
+                padding: 2px;
+                background-color: white;
+            }
+            QComboBox {
+                border: 1px solid #cccccc;
+                border-radius: 4px;
+                padding: 2px;
+                background-color: white;
             }
         """)
         
@@ -564,18 +655,20 @@ class ControlTonoMejorado(QFrame):
                     background-color: #ffc107;
                     color: black;
                     border: none;
-                    border-radius: 15px;
+                    border-radius: 17px;
                     font-weight: bold;
-                    font-size: 12px;
+                    font-size: 14px;
                 }
                 QPushButton:hover {
                     background-color: #e0a800;
                 }
             """)
             self.etiqueta_estado.setText("▶ Reproduciendo")
-            self.etiqueta_estado.setStyleSheet("font-size: 10px; color: #28a745; font-weight: bold;")
+            self.etiqueta_estado.setStyleSheet("font-size: 11px; color: #28a745; font-weight: bold;")
             # Activar el tono
             self.check_activo.setChecked(True)
+            # NUEVO: Iniciar motor de audio automáticamente
+            self.iniciar_motor_audio_si_necesario()
         else:
             self.btn_play_pause.setText("▶")
             self.btn_play_pause.setStyleSheet("""
@@ -583,18 +676,34 @@ class ControlTonoMejorado(QFrame):
                     background-color: #28a745;
                     color: white;
                     border: none;
-                    border-radius: 15px;
+                    border-radius: 17px;
                     font-weight: bold;
-                    font-size: 12px;
+                    font-size: 14px;
                 }
                 QPushButton:hover {
                     background-color: #218838;
                 }
             """)
             self.etiqueta_estado.setText("⏸ Pausado")
-            self.etiqueta_estado.setStyleSheet("font-size: 10px; color: #ffc107; font-weight: bold;")
+            self.etiqueta_estado.setStyleSheet("font-size: 11px; color: #ffc107; font-weight: bold;")
             
         self.emitir_cambios()
+        
+    def iniciar_motor_audio_si_necesario(self):
+        """Inicia el motor de audio si no está corriendo"""
+        # Usar la referencia directa a la ventana principal
+        if hasattr(self, 'ventana_principal') and self.ventana_principal:
+            if not self.ventana_principal.motor_audio.reproduciendo:
+                self.ventana_principal.alternar_audio_global()
+        else:
+            # Fallback: buscar en parent hierarchy
+            parent = self.parent()
+            while parent and not hasattr(parent, 'motor_audio'):
+                parent = parent.parent()
+            
+            if parent and hasattr(parent, 'motor_audio'):
+                if not parent.motor_audio.reproduciendo:
+                    parent.alternar_audio_global()
         
     def stop_tone(self):
         """Detiene completamente este tono"""
@@ -605,35 +714,50 @@ class ControlTonoMejorado(QFrame):
                 background-color: #28a745;
                 color: white;
                 border: none;
-                border-radius: 15px;
+                border-radius: 17px;
                 font-weight: bold;
-                font-size: 12px;
+                font-size: 14px;
             }
             QPushButton:hover {
                 background-color: #218838;
             }
         """)
         self.etiqueta_estado.setText("⏹ Detenido")
-        self.etiqueta_estado.setStyleSheet("font-size: 10px; color: #dc3545; font-weight: bold;")
+        self.etiqueta_estado.setStyleSheet("font-size: 11px; color: #dc3545; font-weight: bold;")
         self.check_activo.setChecked(False)
         self.emitir_cambios()
         
     def emitir_cambios(self):
         """Emite los cambios realizados en el control"""
         volumen_porcentaje = self.slider_volumen.value()
+        panning_valor = self.slider_panning.value()
+        
+        # Actualizar etiquetas
         self.etiqueta_volumen.setText(f"{volumen_porcentaje}%")
+        
+        if panning_valor < -20:
+            self.etiqueta_panning.setText("◄ Izq")
+        elif panning_valor > 20:
+            self.etiqueta_panning.setText("Der ►")
+        else:
+            self.etiqueta_panning.setText("Centro")
         
         configuracion = {
             'frecuencia': self.spin_frecuencia.value(),
             'volumen': volumen_porcentaje / 100.0,
+            'panning': panning_valor / 100.0,  # Convertir a rango -1.0 a 1.0
             'tipo_onda': self.combo_onda.currentText().lower(),
             'activo': self.check_activo.isChecked() and self.esta_reproduciendo
         }
         
+        # NUEVO: Si el tono está activo, asegurar que el motor de audio esté corriendo
+        if configuracion['activo']:
+            self.iniciar_motor_audio_si_necesario()
+        
         self.tono_modificado.emit(self.id_tono, configuracion)
 
 class ControlTemporizador(QFrame):
-    """Widget del temporizador (sin cambios)"""
+    """Widget del temporizador (sin cambios significativos)"""
     
     temporizador_iniciado = Signal()
     temporizador_detenido = Signal()
@@ -669,14 +793,14 @@ class ControlTemporizador(QFrame):
         self.spin_minutos = QSpinBox()
         self.spin_minutos.setRange(0, 999)
         self.spin_minutos.setValue(5)
-        self.spin_minutos.setMinimumWidth(60)
+        self.spin_minutos.setFixedWidth(70)
         config_tiempo.addWidget(self.spin_minutos)
         
         config_tiempo.addWidget(QLabel("Seg:"))
         self.spin_segundos = QSpinBox()
         self.spin_segundos.setRange(0, 59)
         self.spin_segundos.setValue(0)
-        self.spin_segundos.setMinimumWidth(60)
+        self.spin_segundos.setFixedWidth(70)
         config_tiempo.addWidget(self.spin_segundos)
         layout.addLayout(config_tiempo)
         
@@ -685,7 +809,7 @@ class ControlTemporizador(QFrame):
         self.display_tiempo.setStyleSheet("""
             QLabel {
                 font-family: 'Courier New', 'Monaco', monospace;
-                font-size: 32px;
+                font-size: 36px;
                 font-weight: bold;
                 color: #6f42c1;
                 background-color: #f8f9fa;
@@ -699,6 +823,7 @@ class ControlTemporizador(QFrame):
         
         botones = QHBoxLayout()
         self.btn_iniciar = QPushButton("▶ Iniciar")
+        self.btn_iniciar.setFixedHeight(45)
         self.btn_iniciar.setStyleSheet("""
             QPushButton {
                 background-color: #28a745;
@@ -718,6 +843,7 @@ class ControlTemporizador(QFrame):
         
         self.btn_detener = QPushButton("⏹ Detener")
         self.btn_detener.setEnabled(False)
+        self.btn_detener.setFixedHeight(45)
         self.btn_detener.setStyleSheet("""
             QPushButton {
                 background-color: #dc3545;
@@ -813,8 +939,8 @@ class VentanaPrincipal(QMainWindow):
         super().__init__()
         
         self.setWindowTitle("🔊 Sound Hz Emitter v2.0 - Generador de Frecuencias")
-        self.setGeometry(100, 100, 1200, 800)
-        self.setMinimumSize(1000, 700)
+        self.setGeometry(100, 100, 1400, 900)  # Aumentar tamaño por defecto
+        self.setMinimumSize(1200, 800)  # Aumentar tamaño mínimo
         
         # Motor de audio real
         self.motor_audio = MotorAudioReal()
@@ -832,6 +958,9 @@ class VentanaPrincipal(QMainWindow):
         # Aplicar tema inicial
         self.theme_manager.apply_theme()
         
+        # NUEVO: Asegurar que el motor de audio esté disponible
+        print("Motor de audio inicializado y listo")
+        
     def configurar_interfaz(self):
         """Configura la interfaz mejorada"""
         widget_central = QWidget()
@@ -848,7 +977,7 @@ class VentanaPrincipal(QMainWindow):
         self.setStatusBar(self.barra_estado)
         status_msg = "🔊 Sound Hz Emitter v2.0 - "
         if AUDIO_DISPONIBLE:
-            status_msg += "Audio real disponible ✓"
+            status_msg += "Audio real disponible ✓ | Panning estéreo disponible"
         else:
             status_msg += "Modo simulación (instala sounddevice para audio real)"
         self.barra_estado.showMessage(status_msg)
@@ -874,6 +1003,7 @@ class VentanaPrincipal(QMainWindow):
         botones_superiores = QHBoxLayout()
         
         btn_agregar_tono = QPushButton("➕ Agregar Nuevo Tono")
+        btn_agregar_tono.setFixedHeight(40)
         btn_agregar_tono.setStyleSheet("""
             QPushButton {
                 background-color: #28a745;
@@ -892,12 +1022,12 @@ class VentanaPrincipal(QMainWindow):
         botones_superiores.addWidget(btn_agregar_tono)
         
         btn_play_all = QPushButton("▶ Todo")
-        btn_play_all.setMaximumWidth(80)
+        btn_play_all.setFixedSize(80, 40)
         btn_play_all.clicked.connect(self.play_all_tones)
         botones_superiores.addWidget(btn_play_all)
         
         btn_stop_all = QPushButton("⏹ Todo")
-        btn_stop_all.setMaximumWidth(80)
+        btn_stop_all.setFixedSize(80, 40)
         btn_stop_all.clicked.connect(self.stop_all_tones)
         botones_superiores.addWidget(btn_stop_all)
         
@@ -906,15 +1036,15 @@ class VentanaPrincipal(QMainWindow):
         # Área de scroll mejorada
         self.scroll_area_tonos = QScrollArea()
         self.scroll_area_tonos.setWidgetResizable(True)
-        self.scroll_area_tonos.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll_area_tonos.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)  # Cambiar para permitir scroll horizontal si es necesario
         self.scroll_area_tonos.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.scroll_area_tonos.setMinimumHeight(250)
-        self.scroll_area_tonos.setMaximumHeight(450)
+        self.scroll_area_tonos.setMinimumHeight(350)  # Aumentar altura mínima
+        self.scroll_area_tonos.setMaximumHeight(550)  # Aumentar altura máxima
         
         self.widget_contenedor_tonos = QWidget()
         self.layout_tonos = QVBoxLayout(self.widget_contenedor_tonos)
-        self.layout_tonos.setSpacing(8)
-        self.layout_tonos.setContentsMargins(8, 8, 8, 8)
+        self.layout_tonos.setSpacing(12)
+        self.layout_tonos.setContentsMargins(10, 10, 10, 10)
         self.layout_tonos.addStretch()
         
         self.scroll_area_tonos.setWidget(self.widget_contenedor_tonos)
@@ -930,6 +1060,7 @@ class VentanaPrincipal(QMainWindow):
         botones_audio = QHBoxLayout()
         
         self.btn_audio_global = QPushButton("🔊 Iniciar Audio")
+        self.btn_audio_global.setFixedHeight(45)
         self.btn_audio_global.setStyleSheet("""
             QPushButton {
                 background-color: #0078d4;
@@ -948,6 +1079,7 @@ class VentanaPrincipal(QMainWindow):
         botones_audio.addWidget(self.btn_audio_global)
         
         btn_limpiar_tonos = QPushButton("🗑 Eliminar Todos")
+        btn_limpiar_tonos.setFixedHeight(45)
         btn_limpiar_tonos.setStyleSheet("""
             QPushButton {
                 background-color: #dc3545;
@@ -969,6 +1101,7 @@ class VentanaPrincipal(QMainWindow):
         
         # Botón de tema
         btn_tema = QPushButton("🌓 Alternar Tema")
+        btn_tema.setFixedHeight(40)
         btn_tema.setStyleSheet("""
             QPushButton {
                 background-color: #6f42c1;
@@ -1000,15 +1133,17 @@ class VentanaPrincipal(QMainWindow):
         
         texto_informativo = QTextEdit()
         texto_informativo.setReadOnly(True)
-        texto_informativo.setMaximumHeight(350)
+        texto_informativo.setMaximumHeight(380)
         
         contenido_info = f"""
 <h2>🔊 Sound Hz Emitter v2.0</h2>
 <p><b>Generador Profesional de Frecuencias de Sonido</b></p>
 
-<h3>✨ Nuevas Características:</h3>
+<h3>✨ Características Mejoradas:</h3>
 <ul>
-<li><b>🎮 Controles Individuales:</b> Play/Pause/Stop para cada tono</li>
+<li><b>🎮 Controles Mejorados:</b> Play/Pause unificado + Stop separado</li>
+<li><b>🎧 Panning Estéreo:</b> Control L/R para cada tono individual</li>
+<li><b>📐 Tamaños Optimizados:</b> Interfaz redimensionada y mejorada</li>
 <li><b>🎨 Temas:</b> Modo claro y oscuro</li>
 <li><b>🔊 Audio Real:</b> {'Disponible' if AUDIO_DISPONIBLE else 'No disponible (instala sounddevice)'}</li>
 <li><b>📱 Scroll Mejorado:</b> Navegación fluida entre tonos</li>
@@ -1017,13 +1152,13 @@ class VentanaPrincipal(QMainWindow):
 <h3>📋 Cómo usar:</h3>
 <ol>
 <li><b>Agregar Tonos:</b> ➕ Agregar Nuevo Tono</li>
-<li><b>Control Individual:</b> ▶ para reproducir, ⏸ pausar, ⏹ detener</li>
-<li><b>Scroll en Tonos:</b> Rueda del mouse o barra lateral</li>
+<li><b>Play/Pause:</b> ▶/⏸ para alternar reproducción</li>
+<li><b>Stop:</b> ⏹ para detener completamente</li>
+<li><b>Panning:</b> Control L/R para posicionamiento estéreo</li>
 <li><b>Configurar:</b> Frecuencia (20-20,000 Hz), Volumen (0-100%)</li>
 <li><b>Tipos de Onda:</b> Seno, Cuadrada, Triangular, Sierra</li>
 <li><b>Control Global:</b> 🔊 Iniciar/Detener todo el audio</li>
 <li><b>Temporizador:</b> ⏱ Para sesiones programadas</li>
-<li><b>Cambiar Tema:</b> 🌓 Alternar entre claro y oscuro</li>
 </ol>
 
 <h3>🎵 Tipos de Onda:</h3>
@@ -1032,6 +1167,13 @@ class VentanaPrincipal(QMainWindow):
 <li><b>Cuadrada:</b> Sonido fuerte con armónicos, energético</li>
 <li><b>Triangular:</b> Suave pero con carácter, equilibrado</li>
 <li><b>Sierra:</b> Brillante con muchos armónicos</li>
+</ul>
+
+<h3>🎧 Panning Estéreo:</h3>
+<ul>
+<li><b>◄ Izq:</b> Sonido principalmente en canal izquierdo</li>
+<li><b>Centro:</b> Sonido balanceado en ambos canales</li>
+<li><b>Der ►:</b> Sonido principalmente en canal derecho</li>
 </ul>
 
 <h3>🔧 Estado del Sistema:</h3>
@@ -1077,9 +1219,14 @@ class VentanaPrincipal(QMainWindow):
         self.layout_tonos.insertWidget(spacer_index, control_tono)
         self.controles_tonos[id_tono] = control_tono
         
-        self.motor_audio.agregar_tono(id_tono, 440, 0.3)
+        # Agregar al motor de audio
+        self.motor_audio.agregar_tono(id_tono, 440, 0.3, "seno", 0.0)
+        
+        # NUEVO: Asegurar que el control tenga referencia a la ventana principal
+        control_tono.ventana_principal = self
+        
         self.actualizar_estadisticas()
-        self.barra_estado.showMessage(f"✅ Tono {id_tono} agregado - Total: {len(self.controles_tonos)}")
+        self.barra_estado.showMessage(f"✅ Tono {id_tono} agregado con panning estéreo - Total: {len(self.controles_tonos)}")
         
         # Auto-scroll
         QTimer.singleShot(100, lambda: self.scroll_area_tonos.verticalScrollBar().setValue(
@@ -1136,8 +1283,10 @@ class VentanaPrincipal(QMainWindow):
         
         freq = configuracion['frecuencia']
         vol = int(configuracion['volumen'] * 100)
+        pan = configuracion['panning']
+        pan_texto = f"L{abs(pan)*100:.0f}" if pan < -0.2 else f"R{pan*100:.0f}" if pan > 0.2 else "C"
         estado = "▶" if configuracion['activo'] else "⏸"
-        self.barra_estado.showMessage(f"{estado} Tono {id_tono}: {freq} Hz, {vol}%")
+        self.barra_estado.showMessage(f"{estado} Tono {id_tono}: {freq} Hz, {vol}%, {pan_texto}")
         
     def al_iniciar_temporizador(self):
         """Inicia temporizador"""
