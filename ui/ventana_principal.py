@@ -226,6 +226,15 @@ class ThemeManager:
         self.is_dark = not self.is_dark
         self.apply_theme()
         
+        # Actualizar información del panel
+        if hasattr(self.main_window, 'crear_panel_informacion'):
+            try:
+                # Refrescar el contenido informativo
+                theme_text = "🌙 Oscuro" if self.is_dark else "☀ Claro"
+                self.main_window.barra_estado.showMessage(f"🎨 Tema cambiado a: {theme_text}")
+            except:
+                pass
+        
     def apply_theme(self):
         """Aplica el tema actual"""
         if self.is_dark:
@@ -323,6 +332,7 @@ class ThemeManager:
                 margin-top: 10px;
                 padding-top: 10px;
                 background-color: #3c3c3c;
+                color: #ffffff;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
@@ -372,8 +382,8 @@ class ThemeManager:
                 background-color: #42a5f5;
             }
             QStatusBar {
-                background-color: #505050;
-                border-top: 1px solid #666666;
+                background-color: #404040;
+                border-top: 1px solid #555555;
                 color: #ffffff;
             }
             QTextEdit {
@@ -383,11 +393,90 @@ class ThemeManager:
             }
             QLabel {
                 color: #ffffff;
+                background-color: transparent;
             }
-            QSpinBox, QSlider, QComboBox {
+            QSpinBox {
                 background-color: #404040;
                 border: 1px solid #555555;
                 color: #ffffff;
+                border-radius: 4px;
+                padding: 2px;
+            }
+            QSpinBox::up-button, QSpinBox::down-button {
+                background-color: #555555;
+                border: 1px solid #666666;
+            }
+            QSlider {
+                background: transparent;
+            }
+            QSlider::groove:horizontal {
+                border: 1px solid #666666;
+                height: 8px;
+                background: #555555;
+                margin: 2px 0;
+                border-radius: 4px;
+            }
+            QSlider::handle:horizontal {
+                background: #64b5f6;
+                border: 1px solid #42a5f5;
+                width: 18px;
+                margin: -2px 0;
+                border-radius: 9px;
+            }
+            QSlider::handle:horizontal:hover {
+                background: #42a5f5;
+            }
+            QComboBox {
+                background-color: #404040;
+                border: 1px solid #555555;
+                color: #ffffff;
+                border-radius: 4px;
+                padding: 2px;
+            }
+            QComboBox::drop-down {
+                border: none;
+                background-color: #555555;
+            }
+            QComboBox::down-arrow {
+                image: none;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 5px solid #ffffff;
+            }
+            QCheckBox {
+                color: #ffffff;
+                background-color: transparent;
+            }
+            QCheckBox::indicator {
+                background-color: #404040;
+                border: 1px solid #555555;
+                border-radius: 3px;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #28a745;
+                border: 1px solid #28a745;
+            }
+            /* NUEVO: Estilos específicos para temporizador en modo oscuro */
+            QFrame#temporizador_frame {
+                background-color: #404040;
+                border: 2px solid #6f42c1;
+                border-radius: 10px;
+            }
+            QLabel#temporizador_display {
+                background-color: #2b2b2b;
+                border: 3px solid #6f42c1;
+                color: #6f42c1;
+            }
+            QLabel#temporizador_titulo {
+                color: #6f42c1;
+                background-color: transparent;
+            }
+            /* NUEVO: Estilos específicos para estadísticas en modo oscuro */
+            QLabel#estadisticas_label {
+                background-color: #404040;
+                color: #64b5f6;
+                border-left: 4px solid #64b5f6;
+                border-radius: 8px;
             }
         """)
 
@@ -630,17 +719,40 @@ class ControlTonoMejorado(QFrame):
             QSlider {
                 background: transparent;
             }
+            QSlider::groove:horizontal {
+                border: 1px solid #999999;
+                height: 8px;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #B1B1B1, stop:1 #c4c4c4);
+                margin: 2px 0;
+                border-radius: 4px;
+            }
+            QSlider::handle:horizontal {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #b4b4b4, stop:1 #8f8f8f);
+                border: 1px solid #5c5c5c;
+                width: 18px;
+                margin: -2px 0;
+                border-radius: 9px;
+            }
+            QSlider::handle:horizontal:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #0078d4, stop:1 #106ebe);
+            }
             QSpinBox {
                 border: 1px solid #cccccc;
                 border-radius: 4px;
                 padding: 2px;
                 background-color: white;
+                color: black;
             }
             QComboBox {
                 border: 1px solid #cccccc;
                 border-radius: 4px;
                 padding: 2px;
                 background-color: white;
+                color: black;
+            }
+            QLabel {
+                color: black;
+                background-color: transparent;
             }
         """)
         
@@ -667,8 +779,8 @@ class ControlTonoMejorado(QFrame):
             self.etiqueta_estado.setStyleSheet("font-size: 11px; color: #28a745; font-weight: bold;")
             # Activar el tono
             self.check_activo.setChecked(True)
-            # NUEVO: Iniciar motor de audio automáticamente
-            self.iniciar_motor_audio_si_necesario()
+            # Asegurar que el motor de audio esté activo
+            self.asegurar_motor_audio_activo()
         else:
             self.btn_play_pause.setText("▶")
             self.btn_play_pause.setStyleSheet("""
@@ -689,12 +801,11 @@ class ControlTonoMejorado(QFrame):
             
         self.emitir_cambios()
         
-    def iniciar_motor_audio_si_necesario(self):
-        """Inicia el motor de audio si no está corriendo"""
-        # Usar la referencia directa a la ventana principal
+    def asegurar_motor_audio_activo(self):
+        """Asegura que el motor de audio esté activo cuando sea necesario"""
         if hasattr(self, 'ventana_principal') and self.ventana_principal:
             if not self.ventana_principal.motor_audio.reproduciendo:
-                self.ventana_principal.alternar_audio_global()
+                self.ventana_principal.iniciar_audio_global()
         else:
             # Fallback: buscar en parent hierarchy
             parent = self.parent()
@@ -703,7 +814,40 @@ class ControlTonoMejorado(QFrame):
             
             if parent and hasattr(parent, 'motor_audio'):
                 if not parent.motor_audio.reproduciendo:
-                    parent.alternar_audio_global()
+                    parent.iniciar_audio_global()
+                    
+    def reactivar_si_habilitado(self):
+        """Reactiva el tono si está habilitado pero no reproduciéndose (para temporizador)"""
+        if self.check_activo.isChecked() and not self.esta_reproduciendo:
+            print(f"DEBUG: Reactivando tono {self.id_tono} desde método específico")
+            self.esta_reproduciendo = True
+            
+            # Actualizar interfaz visual
+            self.btn_play_pause.setText("⏸")
+            self.btn_play_pause.setStyleSheet("""
+                QPushButton {
+                    background-color: #ffc107;
+                    color: black;
+                    border: none;
+                    border-radius: 17px;
+                    font-weight: bold;
+                    font-size: 14px;
+                }
+                QPushButton:hover {
+                    background-color: #e0a800;
+                }
+            """)
+            self.etiqueta_estado.setText("▶ Reproduciendo")
+            self.etiqueta_estado.setStyleSheet("font-size: 11px; color: #28a745; font-weight: bold;")
+            
+            # Emitir cambios para actualizar motor de audio
+            self.emitir_cambios()
+            
+            # Asegurar motor de audio activo
+            self.asegurar_motor_audio_activo()
+            
+            return True
+        return False
         
     def stop_tone(self):
         """Detiene completamente este tono"""
@@ -725,7 +869,13 @@ class ControlTonoMejorado(QFrame):
         self.etiqueta_estado.setText("⏹ Detenido")
         self.etiqueta_estado.setStyleSheet("font-size: 11px; color: #dc3545; font-weight: bold;")
         self.check_activo.setChecked(False)
+        
+        # NUEVO: Emitir cambios para asegurar sincronización con motor de audio
         self.emitir_cambios()
+        
+        # NUEVO: Notificar a la ventana principal para verificar auto-detención
+        if hasattr(self, 'ventana_principal') and self.ventana_principal:
+            QTimer.singleShot(100, self.ventana_principal.verificar_y_gestionar_audio_global)
         
     def emitir_cambios(self):
         """Emite los cambios realizados en el control"""
@@ -750,10 +900,7 @@ class ControlTonoMejorado(QFrame):
             'activo': self.check_activo.isChecked() and self.esta_reproduciendo
         }
         
-        # NUEVO: Si el tono está activo, asegurar que el motor de audio esté corriendo
-        if configuracion['activo']:
-            self.iniciar_motor_audio_si_necesario()
-        
+        # Solo emitir cambios, no iniciar audio automáticamente aquí
         self.tono_modificado.emit(self.id_tono, configuracion)
 
 class ControlTemporizador(QFrame):
@@ -777,6 +924,7 @@ class ControlTemporizador(QFrame):
         layout.setContentsMargins(15, 15, 15, 15)
         
         titulo = QLabel("⏱ Temporizador de Sesión")
+        titulo.setObjectName("temporizador_titulo")  # NUEVO: ID para estilos
         titulo.setAlignment(Qt.AlignCenter)
         titulo.setStyleSheet("""
             QLabel {
@@ -794,6 +942,8 @@ class ControlTemporizador(QFrame):
         self.spin_minutos.setRange(0, 999)
         self.spin_minutos.setValue(5)
         self.spin_minutos.setFixedWidth(70)
+        # Conectar cambios para actualización automática
+        self.spin_minutos.valueChanged.connect(self.actualizar_display_configuracion)
         config_tiempo.addWidget(self.spin_minutos)
         
         config_tiempo.addWidget(QLabel("Seg:"))
@@ -801,10 +951,13 @@ class ControlTemporizador(QFrame):
         self.spin_segundos.setRange(0, 59)
         self.spin_segundos.setValue(0)
         self.spin_segundos.setFixedWidth(70)
+        # Conectar cambios para actualización automática
+        self.spin_segundos.valueChanged.connect(self.actualizar_display_configuracion)
         config_tiempo.addWidget(self.spin_segundos)
         layout.addLayout(config_tiempo)
         
         self.display_tiempo = QLabel("05:00")
+        self.display_tiempo.setObjectName("temporizador_display")  # NUEVO: ID para estilos
         self.display_tiempo.setAlignment(Qt.AlignCenter)
         self.display_tiempo.setStyleSheet("""
             QLabel {
@@ -871,6 +1024,25 @@ class ControlTemporizador(QFrame):
         layout.addWidget(self.etiqueta_estado)
         
         self.setFrameStyle(QFrame.Box)
+        self.setObjectName("temporizador_frame")  # NUEVO: ID para estilos
+        
+    def actualizar_display_configuracion(self):
+        """Actualiza el display cuando se cambian los minutos/segundos sin estar ejecutándose"""
+        if not self.timer_qt.isActive():  # Solo actualizar si no está corriendo
+            minutos = self.spin_minutos.value()
+            segundos = self.spin_segundos.value()
+            tiempo_total = minutos * 60 + segundos
+            
+            # Actualizar display
+            minutos_display = tiempo_total // 60
+            segundos_display = tiempo_total % 60
+            self.display_tiempo.setText(f"{minutos_display:02d}:{segundos_display:02d}")
+            
+            # Actualizar estado
+            if tiempo_total > 0:
+                self.etiqueta_estado.setText("🔄 Listo para iniciar")
+            else:
+                self.etiqueta_estado.setText("⚠ Configura un tiempo mayor a 0")
         
     def iniciar_temporizador(self):
         minutos = self.spin_minutos.value()
@@ -878,7 +1050,8 @@ class ControlTemporizador(QFrame):
         tiempo_total = minutos * 60 + segundos
         
         if tiempo_total <= 0:
-            QMessageBox.warning(self, "Error", "⚠ Configura un tiempo mayor a 0")
+            # CAMBIADO: Sin QMessageBox, solo mostrar en estado
+            self.etiqueta_estado.setText("⚠ Configura un tiempo mayor a 0")
             return
         
         self.tiempo_total_segundos = tiempo_total
@@ -892,6 +1065,12 @@ class ControlTemporizador(QFrame):
         self.spin_minutos.setEnabled(False)
         self.spin_segundos.setEnabled(False)
         self.etiqueta_estado.setText("⏱ Temporizador activo...")
+        
+        # Actualizar display inmediatamente al iniciar
+        minutos_display = self.tiempo_restante_segundos // 60
+        segundos_display = self.tiempo_restante_segundos % 60
+        self.display_tiempo.setText(f"{minutos_display:02d}:{segundos_display:02d}")
+        
         self.temporizador_iniciado.emit()
         
     def pausar_temporizador(self):
@@ -917,6 +1096,10 @@ class ControlTemporizador(QFrame):
         self.spin_minutos.setEnabled(True)
         self.spin_segundos.setEnabled(True)
         self.etiqueta_estado.setText("⏹ Temporizador detenido")
+        
+        # NUEVO: Restaurar display a la configuración actual
+        self.actualizar_display_configuracion()
+        
         self.temporizador_detenido.emit()
         
     def actualizar_display(self):
@@ -958,8 +1141,11 @@ class VentanaPrincipal(QMainWindow):
         # Aplicar tema inicial
         self.theme_manager.apply_theme()
         
-        # NUEVO: Asegurar que el motor de audio esté disponible
-        print("Motor de audio inicializado y listo")
+        # Asegurar que el motor de audio esté disponible
+        print("🔊 Motor de audio inicializado y listo")
+        print(f"🎯 Modo de audio: {'Real' if AUDIO_DISPONIBLE else 'Simulación'}")
+        print("⏱ Temporizador v3 con reactivación automática activado")
+        print("📊 Notificaciones silenciosas configuradas")
         
     def configurar_interfaz(self):
         """Configura la interfaz mejorada"""
@@ -977,9 +1163,9 @@ class VentanaPrincipal(QMainWindow):
         self.setStatusBar(self.barra_estado)
         status_msg = "🔊 Sound Hz Emitter v2.0 - "
         if AUDIO_DISPONIBLE:
-            status_msg += "Audio real disponible ✓ | Panning estéreo disponible"
+            status_msg += "Audio real ✓ | Temporizador v3 ⏱ | Panning estéreo 🎧 | Temas optimizados 🎨 | Detención inmediata 🔇"
         else:
-            status_msg += "Modo simulación (instala sounddevice para audio real)"
+            status_msg += "Modo simulación | Temporizador v3 ⏱ | Temas optimizados 🎨 | Notificaciones silenciosas 📊"
         self.barra_estado.showMessage(status_msg)
         
     def crear_panel_controles(self, layout_padre):
@@ -1144,22 +1330,34 @@ class VentanaPrincipal(QMainWindow):
 <li><b>🎮 Controles Mejorados:</b> Play/Pause unificado + Stop separado</li>
 <li><b>🎧 Panning Estéreo:</b> Control L/R para cada tono individual</li>
 <li><b>📐 Tamaños Optimizados:</b> Interfaz redimensionada y mejorada</li>
-<li><b>🎨 Temas:</b> Modo claro y oscuro</li>
-<li><b>🔊 Audio Real:</b> {'Disponible' if AUDIO_DISPONIBLE else 'No disponible (instala sounddevice)'}</li>
+<li><b>🎨 Temas Consistentes:</b> Modo claro y oscuro totalmente optimizados</li>
+<li><b>🔊 Audio Real:</b> {'Disponible con auto-gestión' if AUDIO_DISPONIBLE else 'No disponible (instala sounddevice)'}</li>
 <li><b>📱 Scroll Mejorado:</b> Navegación fluida entre tonos</li>
+<li><b>🤖 Gestión Automática:</b> Audio se inicia/detiene según necesidad</li>
+<li><b>⏱ Temporizador Inteligente:</b> Reactivación automática y detención inmediata</li>
 </ul>
 
 <h3>📋 Cómo usar:</h3>
 <ol>
-<li><b>Agregar Tonos:</b> ➕ Agregar Nuevo Tono</li>
+<li><b>Agregar Tonos:</b> ➕ Agregar Nuevo Tono (no inicia automáticamente)</li>
 <li><b>Play/Pause:</b> ▶/⏸ para alternar reproducción</li>
 <li><b>Stop:</b> ⏹ para detener completamente</li>
 <li><b>Panning:</b> Control L/R para posicionamiento estéreo</li>
+<li><b>Audio Global:</b> Se gestiona automáticamente según tonos activos</li>
 <li><b>Configurar:</b> Frecuencia (20-20,000 Hz), Volumen (0-100%)</li>
 <li><b>Tipos de Onda:</b> Seno, Cuadrada, Triangular, Sierra</li>
-<li><b>Control Global:</b> 🔊 Iniciar/Detener todo el audio</li>
-<li><b>Temporizador:</b> ⏱ Para sesiones programadas</li>
+<li><b>Temporizador:</b> ⏱ Con reactivación automática y notificaciones silenciosas</li>
 </ol>
+
+<h3>⏱ Temporizador Inteligente v3:</h3>
+<ul>
+<li><b>📝 Actualización Automática:</b> El display se actualiza al cambiar min/seg</li>
+<li><b>🔇 Detención Inmediata:</b> Los tonos se detienen al instante cuando termina el tiempo</li>
+<li><b>🔄 Reactivación Automática:</b> Reactiva automáticamente tonos habilitados ✓</li>
+<li><b>📊 Notificaciones Silenciosas:</b> Solo en estadísticas, sin ventanas emergentes</li>
+<li><b>⚠ Validación:</b> Impide iniciar con tiempo = 0</li>
+<li><b>🔄 Persistencia de Estados:</b> Los checkboxes ✓ se mantienen para reactivación</li>
+</ul>
 
 <h3>🎵 Tipos de Onda:</h3>
 <ul>
@@ -1177,8 +1375,11 @@ class VentanaPrincipal(QMainWindow):
 </ul>
 
 <h3>🔧 Estado del Sistema:</h3>
-<p><b>Audio:</b> {'🟢 Real (SoundDevice)' if AUDIO_DISPONIBLE else '🟡 Simulado'}</p>
-<p><b>Tema:</b> {'🌙 Oscuro' if hasattr(self, 'theme_manager') and self.theme_manager.is_dark else '☀ Claro'}</p>
+<p><b>Audio:</b> {'🟢 Real con Auto-gestión' if AUDIO_DISPONIBLE else '🟡 Simulado'}</p>
+<p><b>Tema:</b> {'🌙 Oscuro' if self.theme_manager.is_dark else '☀ Claro'} - Totalmente optimizado</p>
+<p><b>Comportamiento:</b> 🤖 Gestión automática activada</p>
+<p><b>Temporizador:</b> ⏱ v3 con reactivación automática y detención inmediata</p>
+<p><b>Notificaciones:</b> 📊 100% silenciosas en estadísticas</p>
 """
         
         texto_informativo.setHtml(contenido_info)
@@ -1190,11 +1391,13 @@ class VentanaPrincipal(QMainWindow):
         layout_stats = QVBoxLayout(grupo_stats)
         
         self.etiqueta_stats = QLabel("🎵 Tonos configurados: 0\n▶ Tonos reproduciendo: 0\n🔊 Audio global: Detenido")
+        self.etiqueta_stats.setObjectName("estadisticas_label")  # NUEVO: ID para estilos
         self.etiqueta_stats.setStyleSheet("""
             QLabel {
                 font-size: 12px;
                 padding: 15px;
                 background-color: #e8f4fd;
+                color: #0078d4;
                 border-radius: 8px;
                 border-left: 4px solid #0078d4;
             }
@@ -1219,19 +1422,27 @@ class VentanaPrincipal(QMainWindow):
         self.layout_tonos.insertWidget(spacer_index, control_tono)
         self.controles_tonos[id_tono] = control_tono
         
-        # Agregar al motor de audio
+        # Agregar al motor de audio (pero sin activar automáticamente)
         self.motor_audio.agregar_tono(id_tono, 440, 0.3, "seno", 0.0)
         
-        # NUEVO: Asegurar que el control tenga referencia a la ventana principal
+        # Asegurar que el control tenga referencia a la ventana principal
         control_tono.ventana_principal = self
         
         self.actualizar_estadisticas()
-        self.barra_estado.showMessage(f"✅ Tono {id_tono} agregado con panning estéreo - Total: {len(self.controles_tonos)}")
+        self.barra_estado.showMessage(f"✅ Tono {id_tono} agregado - Total: {len(self.controles_tonos)} (Presiona ▶ para reproducir)")
         
         # Auto-scroll
         QTimer.singleShot(100, lambda: self.scroll_area_tonos.verticalScrollBar().setValue(
             self.scroll_area_tonos.verticalScrollBar().maximum()
         ))
+        
+    def iniciar_audio_global(self):
+        """Inicia el audio global (función específica para los controles)"""
+        if not self.motor_audio.reproduciendo:
+            self.motor_audio.iniciar()
+            self.btn_audio_global.setText("🔇 Detener Audio")
+            self.barra_estado.showMessage("🔊 Audio global iniciado automáticamente")
+            self.actualizar_estadisticas()
         
     def eliminar_tono(self, id_tono):
         """Elimina un tono"""
@@ -1247,17 +1458,32 @@ class VentanaPrincipal(QMainWindow):
             
     def play_all_tones(self):
         """Reproduce todos los tonos"""
+        tonos_iniciados = 0
         for control in self.controles_tonos.values():
             if not control.esta_reproduciendo:
                 control.toggle_play_pause()
-        self.barra_estado.showMessage("▶ Todos los tonos iniciados")
+                tonos_iniciados += 1
+        
+        if tonos_iniciados > 0:
+            self.barra_estado.showMessage(f"▶ {tonos_iniciados} tonos iniciados")
+        else:
+            self.barra_estado.showMessage("▶ Todos los tonos ya están reproduciendo")
         
     def stop_all_tones(self):
         """Detiene todos los tonos"""
+        tonos_detenidos = 0
         for control in self.controles_tonos.values():
             if control.esta_reproduciendo:
                 control.stop_tone()
-        self.barra_estado.showMessage("⏹ Todos los tonos detenidos")
+                tonos_detenidos += 1
+        
+        if tonos_detenidos > 0:
+            self.barra_estado.showMessage(f"⏹ {tonos_detenidos} tonos detenidos")
+        else:
+            self.barra_estado.showMessage("⏹ Todos los tonos ya están detenidos")
+            
+        # Verificar y detener audio global si es necesario
+        self.verificar_y_gestionar_audio_global()
         
     def eliminar_todos_los_tonos(self):
         """Elimina todos los tonos con confirmación"""
@@ -1281,6 +1507,9 @@ class VentanaPrincipal(QMainWindow):
         self.motor_audio.actualizar_tono(id_tono, **configuracion)
         self.actualizar_estadisticas()
         
+        # Verificar si hay tonos activos para gestionar el audio global
+        self.verificar_y_gestionar_audio_global()
+        
         freq = configuracion['frecuencia']
         vol = int(configuracion['volumen'] * 100)
         pan = configuracion['panning']
@@ -1288,20 +1517,165 @@ class VentanaPrincipal(QMainWindow):
         estado = "▶" if configuracion['activo'] else "⏸"
         self.barra_estado.showMessage(f"{estado} Tono {id_tono}: {freq} Hz, {vol}%, {pan_texto}")
         
-    def al_iniciar_temporizador(self):
-        """Inicia temporizador"""
-        if not self.motor_audio.reproduciendo:
+    def verificar_y_gestionar_audio_global(self):
+        """Verifica si hay tonos activos y gestiona el audio global automáticamente"""
+        tonos_activos = sum(1 for control in self.controles_tonos.values() 
+                           if control.esta_reproduciendo and control.check_activo.isChecked())
+        tonos_habilitados = sum(1 for control in self.controles_tonos.values() 
+                               if control.check_activo.isChecked())
+        tonos_configurados = len(self.controles_tonos)
+        
+        # Si no hay tonos activos pero el audio está corriendo, detenerlo automáticamente
+        if tonos_activos == 0 and self.motor_audio.reproduciendo:
+            self.motor_audio.detener()
+            self.btn_audio_global.setText("🔊 Iniciar Audio")
+            
+            if tonos_habilitados > 0:
+                self.barra_estado.showMessage(f"🔇 Audio detenido automáticamente - {tonos_habilitados} tonos habilitados (listos para reactivar)")
+            elif tonos_configurados > 0:
+                self.barra_estado.showMessage(f"🔇 Audio detenido automáticamente - {tonos_configurados} tonos pausados")
+            else:
+                self.barra_estado.showMessage("🔇 Audio detenido automáticamente - Sin tonos activos")
+            
+            self.actualizar_estadisticas()
+            
+        # Si hay tonos activos pero el audio no está corriendo, iniciarlo automáticamente
+        elif tonos_activos > 0 and not self.motor_audio.reproduciendo:
             self.motor_audio.iniciar()
             self.btn_audio_global.setText("🔇 Detener Audio")
-        self.barra_estado.showMessage("⏱ Temporizador iniciado - Audio activo")
+            self.barra_estado.showMessage(f"🔊 Audio iniciado automáticamente - {tonos_activos} tonos reproduciéndose")
+            self.actualizar_estadisticas()
+        
+    def al_iniciar_temporizador(self):
+        """Inicia temporizador y gestiona audio con reactivación inteligente"""
+        # Verificar estados de tonos
+        tonos_disponibles = len(self.controles_tonos)
+        tonos_activos = sum(1 for control in self.controles_tonos.values() 
+                           if control.esta_reproduciendo and control.check_activo.isChecked())
+        tonos_habilitados = sum(1 for control in self.controles_tonos.values() 
+                               if control.check_activo.isChecked())
+        
+        print(f"DEBUG: Tonos disponibles: {tonos_disponibles}, activos: {tonos_activos}, habilitados: {tonos_habilitados}")
+        
+        # MEJORADO: Si hay tonos habilitados pero no activos, reactivarlos automáticamente
+        if tonos_habilitados > 0 and tonos_activos == 0:
+            tonos_reactivados = 0
+            for control in self.controles_tonos.values():
+                if hasattr(control, 'reactivar_si_habilitado'):
+                    if control.reactivar_si_habilitado():
+                        tonos_reactivados += 1
+                        print(f"DEBUG: Tono {control.id_tono} reactivado usando método específico")
+                elif control.check_activo.isChecked() and not control.esta_reproduciendo:
+                    print(f"DEBUG: Reactivando tono {control.id_tono} usando método manual")
+                    # Reactiva directamente el tono (fallback)
+                    control.esta_reproduciendo = True
+                    control.btn_play_pause.setText("⏸")
+                    control.btn_play_pause.setStyleSheet("""
+                        QPushButton {
+                            background-color: #ffc107;
+                            color: black;
+                            border: none;
+                            border-radius: 17px;
+                            font-weight: bold;
+                            font-size: 14px;
+                        }
+                        QPushButton:hover {
+                            background-color: #e0a800;
+                        }
+                    """)
+                    control.etiqueta_estado.setText("▶ Reproduciendo")
+                    control.etiqueta_estado.setStyleSheet("font-size: 11px; color: #28a745; font-weight: bold;")
+                    
+                    # Emitir cambios para actualizar el motor de audio
+                    control.emitir_cambios()
+                    tonos_reactivados += 1
+            
+            # Actualizar contadores después de reactivación
+            tonos_activos = tonos_reactivados
+            
+            if tonos_reactivados > 0:
+                self.barra_estado.showMessage(f"⏱ Temporizador iniciado - {tonos_reactivados} tonos reactivados automáticamente")
+                print(f"DEBUG: {tonos_reactivados} tonos reactivados exitosamente")
+        
+        # Iniciar audio global si no está activo y hay tonos disponibles
+        if tonos_disponibles > 0 and not self.motor_audio.reproduciendo:
+            self.motor_audio.iniciar()
+            self.btn_audio_global.setText("🔇 Detener Audio")
+            print("DEBUG: Motor de audio iniciado")
+            
+        # Mensajes informativos mejorados
+        if tonos_activos > 0:
+            if not hasattr(self, '_mensaje_ya_mostrado'):
+                self.barra_estado.showMessage(f"⏱ Temporizador iniciado - {tonos_activos} tonos reproduciéndose")
+        elif tonos_disponibles > 0:
+            self.barra_estado.showMessage(f"⏱ Temporizador iniciado - {tonos_disponibles} tonos disponibles (presiona ▶ para reproducir)")
+        else:
+            self.barra_estado.showMessage("⏱ Temporizador iniciado - Agrega tonos para comenzar")
+            
+        # Actualizar estadísticas
+        self.actualizar_estadisticas()
         
     def al_detener_temporizador(self):
-        """Detiene temporizador"""
-        self.barra_estado.showMessage("⏱ Temporizador detenido")
+        """Detiene temporizador (detención manual)"""
+        # No detener tonos en detención manual, solo informar
+        tonos_activos = sum(1 for control in self.controles_tonos.values() 
+                           if control.esta_reproduciendo and control.check_activo.isChecked())
+        
+        if tonos_activos > 0:
+            self.barra_estado.showMessage(f"⏱ Temporizador detenido manualmente - {tonos_activos} tonos continúan reproduciéndose")
+        else:
+            self.barra_estado.showMessage("⏱ Temporizador detenido manualmente")
         
     def al_finalizar_temporizador(self):
-        """Finaliza temporizador"""
-        self.barra_estado.showMessage("✅ ¡Sesión completada!")
+        """Finaliza temporizador y detiene todos los tonos automáticamente"""
+        # INMEDIATAMENTE detener todos los tonos activos
+        tonos_detenidos = 0
+        for control in self.controles_tonos.values():
+            if control.esta_reproduciendo:
+                control.esta_reproduciendo = False  # Detener estado interno inmediatamente
+                control.stop_tone()  # Actualizar interfaz
+                tonos_detenidos += 1
+        
+        # Detener motor de audio inmediatamente
+        if self.motor_audio.reproduciendo:
+            self.motor_audio.detener()
+            self.btn_audio_global.setText("🔊 Iniciar Audio")
+        
+        # Actualizar estadísticas con mensaje de finalización inmediatamente
+        self.actualizar_estadisticas_con_mensaje_finalizacion(tonos_detenidos)
+        
+        # Mensaje en barra de estado (silencioso)
+        if tonos_detenidos > 0:
+            self.barra_estado.showMessage(f"✅ Sesión completada - {tonos_detenidos} tonos detenidos automáticamente")
+        else:
+            self.barra_estado.showMessage("✅ ¡Sesión completada!")
+            
+        # Sincronizar estados para próxima ejecución (con delay corto)
+        QTimer.singleShot(100, self.sincronizar_estados_tonos)
+        
+    def actualizar_estadisticas_con_mensaje_finalizacion(self, tonos_detenidos):
+        """Actualiza estadísticas mostrando mensaje de finalización"""
+        total_tonos = len(self.controles_tonos)
+        tonos_reproduciendo = 0  # Todos se detuvieron
+        tonos_habilitados = sum(1 for control in self.controles_tonos.values() 
+                               if control.check_activo.isChecked())
+        
+        estado_audio = "🔇 Detenido"
+        mensaje_finalizacion = f"⏰ Tiempo completado"
+        if tonos_detenidos > 0:
+            mensaje_finalizacion += f" - {tonos_detenidos} tonos detenidos"
+        
+        # Mostrar en estadísticas el estado especial de finalización
+        self.etiqueta_stats.setText(
+            f"🎵 Tonos configurados: {total_tonos}\n"
+            f"▶ Tonos reproduciendo: {tonos_reproduciendo}\n"
+            f"✓ Tonos habilitados: {tonos_habilitados}\n"
+            f"🔊 Audio global: {estado_audio}\n"
+            f"📊 Estado: {mensaje_finalizacion}"
+        )
+        
+        # Restaurar estadísticas normales después de 8 segundos
+        QTimer.singleShot(8000, self.actualizar_estadisticas)
         
     def alternar_audio_global(self):
         """Alterna audio global"""
@@ -1315,24 +1689,82 @@ class VentanaPrincipal(QMainWindow):
             self.barra_estado.showMessage("🔊 Audio global iniciado")
         self.actualizar_estadisticas()
             
+    def sincronizar_estados_tonos(self):
+        """Sincroniza los estados visuales de los tonos (MANTIENE checkboxes para reactivación)"""
+        for control in self.controles_tonos.values():
+            # Verificar consistencia entre estado visual y audio real
+            if hasattr(control, 'esta_reproduciendo'):
+                if not control.esta_reproduciendo:
+                    # Asegurar que el botón esté en estado de play
+                    control.btn_play_pause.setText("▶")
+                    control.btn_play_pause.setStyleSheet("""
+                        QPushButton {
+                            background-color: #28a745;
+                            color: white;
+                            border: none;
+                            border-radius: 17px;
+                            font-weight: bold;
+                            font-size: 14px;
+                        }
+                        QPushButton:hover {
+                            background-color: #218838;
+                        }
+                    """)
+                    control.etiqueta_estado.setText("⏹ Detenido")
+                    control.etiqueta_estado.setStyleSheet("font-size: 11px; color: #dc3545; font-weight: bold;")
+                    # CRÍTICO: NO desmarcar check_activo para permitir reactivación automática
+                    # control.check_activo.setChecked(False)  # <-- ESTA LÍNEA COMENTADA
+        
+        # Actualizar estadísticas después de sincronizar
+        self.actualizar_estadisticas()
+        
     def actualizar_estadisticas(self):
-        """Actualiza estadísticas"""
+        """Actualiza estadísticas (versión mejorada)"""
         total_tonos = len(self.controles_tonos)
         tonos_reproduciendo = sum(1 for control in self.controles_tonos.values() 
                                  if control.esta_reproduciendo and control.check_activo.isChecked())
+        tonos_habilitados = sum(1 for control in self.controles_tonos.values() 
+                               if control.check_activo.isChecked())
         
         estado_audio = "🔊 Activo" if self.motor_audio.reproduciendo else "🔇 Detenido"
         
-        self.etiqueta_stats.setText(
-            f"🎵 Tonos configurados: {total_tonos}\n"
-            f"▶ Tonos reproduciendo: {tonos_reproduciendo}\n"
-            f"🔊 Audio global: {estado_audio}"
-        )
+        # NUEVO: Mostrar información más detallada
+        texto_stats = f"🎵 Tonos configurados: {total_tonos}\n"
+        texto_stats += f"▶ Tonos reproduciendo: {tonos_reproduciendo}\n"
+        if tonos_habilitados > tonos_reproduciendo and tonos_habilitados > 0:
+            texto_stats += f"✓ Tonos habilitados: {tonos_habilitados}\n"
+        texto_stats += f"🔊 Audio global: {estado_audio}"
+        
+        self.etiqueta_stats.setText(texto_stats)
         
     def closeEvent(self, event):
         """Cierre de aplicación"""
+        # Detener todos los tonos primero
+        for control in self.controles_tonos.values():
+            if control.esta_reproduciendo:
+                control.stop_tone()
+        
+        # Detener motor de audio
         self.motor_audio.detener()
+        
+        # Detener temporizador
         if hasattr(self, 'control_temporizador'):
             self.control_temporizador.timer_qt.stop()
+            
         print("🔊 Sound Hz Emitter cerrado correctamente")
         event.accept()
+        
+    def forzar_sincronizacion_completa(self):
+        """Fuerza la sincronización completa de todos los estados (método de emergencia)"""
+        print("🔄 Forzando sincronización completa de estados...")
+        
+        # Sincronizar cada tono
+        self.sincronizar_estados_tonos()
+        
+        # Verificar y corregir audio global
+        self.verificar_y_gestionar_audio_global()
+        
+        # Actualizar estadísticas
+        self.actualizar_estadisticas()
+        
+        print("✅ Sincronización completa finalizada")
