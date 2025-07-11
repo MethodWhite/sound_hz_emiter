@@ -52,7 +52,7 @@ class AudioThread(QThread):
         """Elimina un tono"""
         if tone_id in self.tonos_activos:
             del self.tonos_activos[tone_id]
-            
+
     def set_tone_active(self, tone_id, active):
         """Activa/desactiva un tono"""
         if tone_id in self.tonos_activos:
@@ -117,14 +117,12 @@ class AudioThread(QThread):
             wave = carrier * modulator
         else:
             wave = np.sin(2 * np.pi * frequency * t)
-            
         return wave, t[-1] if len(t) > 0 else 0
     
     def audio_callback(self, outdata, frames, time, status):
         """Callback para generación de audio con panning estéreo"""
         if status:
             print(f"Audio status: {status}")
-            
         # Inicializar buffers estéreo
         buffer_left = np.zeros(frames, dtype=np.float32)
         buffer_right = np.zeros(frames, dtype=np.float32)
@@ -138,21 +136,16 @@ class AudioThread(QThread):
                     frames,
                     tone_data['phase']
                 )
-                
                 # Aplicar volumen
                 wave = wave * tone_data['volume']
-                
                 # Aplicar panning estéreo
                 panning = tone_data['panning']  # -1.0 a 1.0
-                
                 # Calcular ganancia para cada canal
                 left_gain = np.sqrt((1.0 - panning) / 2.0) if panning >= 0 else 1.0
                 right_gain = np.sqrt((1.0 + panning) / 2.0) if panning <= 0 else 1.0
-                
                 # Mezclar con buffers
                 buffer_left += wave * left_gain
                 buffer_right += wave * right_gain
-                
                 # Actualizar fase
                 tone_data['phase'] = new_phase
         
@@ -161,7 +154,6 @@ class AudioThread(QThread):
             max_amplitude_left = np.max(np.abs(buffer_left)) if len(buffer_left) > 0 else 0
             max_amplitude_right = np.max(np.abs(buffer_right)) if len(buffer_right) > 0 else 0
             max_amplitude = max(max_amplitude_left, max_amplitude_right)
-            
             if max_amplitude > 0.8:
                 buffer_left = buffer_left * 0.8 / max_amplitude
                 buffer_right = buffer_right * 0.8 / max_amplitude
@@ -175,12 +167,10 @@ class AudioThread(QThread):
         if not AUDIO_DISPONIBLE:
             print("Audio no disponible - sounddevice no instalado")
             return False
-            
         try:
             if self.stream is not None:
                 self.stream.stop()
                 self.stream.close()
-                
             self.stream = sd.OutputStream(
                 samplerate=self.sample_rate,
                 channels=2,
@@ -191,7 +181,6 @@ class AudioThread(QThread):
             self.running = True
             print("Audio iniciado correctamente")
             return True
-            
         except Exception as e:
             print(f"Error iniciando audio: {e}")
             return False
@@ -227,7 +216,7 @@ class MotorAudioReal:
             print("Audio iniciado (modo simulación)")
             self.reproduciendo = True
             return True
-            
+
     def detener(self):
         """Detiene el motor de audio"""
         if AUDIO_DISPONIBLE:
@@ -294,7 +283,7 @@ class ThemeManager:
             self.apply_dark_theme()
         else:
             self.apply_light_theme()
-            
+
     def apply_light_theme(self):
         """Aplica tema claro"""
         self.main_window.setStyleSheet("""
@@ -370,43 +359,14 @@ class ThemeManager:
             QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 background-color: #f8f9fa;
             }
-            /* CORRECCIÓN: Contenedor principal de tonos en modo claro */
             QWidget#widget_contenedor_tonos {
                 background-color: white;
                 border: none;
             }
-            /* CORRECCIÓN: Área de scroll específica para tonos en modo claro */
             QScrollArea#scroll_area_tonos {
                 background-color: white;
                 border: 1px solid #cccccc;
                 border-radius: 8px;
-            }
-            QScrollArea#scroll_area_tonos QScrollBar:vertical {
-                background-color: #f0f0f0;
-                width: 14px;
-                border-radius: 7px;
-                border: 1px solid #cccccc;
-                margin: 2px;
-            }
-            QScrollArea#scroll_area_tonos QScrollBar::handle:vertical {
-                background-color: #0078d4;
-                border-radius: 6px;
-                min-height: 30px;
-                border: 1px solid #106ebe;
-                margin: 1px;
-            }
-            QScrollArea#scroll_area_tonos QScrollBar::handle:vertical:hover {
-                background-color: #106ebe;
-            }
-            QScrollArea#scroll_area_tonos QScrollBar::add-line:vertical,
-            QScrollArea#scroll_area_tonos QScrollBar::sub-line:vertical {
-                border: none;
-                background: none;
-                height: 0px;
-            }
-            QScrollArea#scroll_area_tonos QScrollBar::add-page:vertical,
-            QScrollArea#scroll_area_tonos QScrollBar::sub-page:vertical {
-                background-color: #f8f9fa;
             }
             QStatusBar {
                 background-color: #f8f9fa;
@@ -565,7 +525,6 @@ class ThemeManager:
                 background-color: #28a745;
                 border: 1px solid #28a745;
             }
-            /* NUEVO: Estilos específicos para temporizador en modo oscuro */
             QFrame#temporizador_frame {
                 background-color: #404040;
                 border: 2px solid #6f42c1;
@@ -580,105 +539,26 @@ class ThemeManager:
                 color: #6f42c1;
                 background-color: transparent;
             }
-            /* NUEVO: Estilos específicos para estadísticas en modo oscuro */
             QLabel#estadisticas_label {
                 background-color: #404040;
                 color: #64b5f6;
                 border-left: 4px solid #64b5f6;
                 border-radius: 8px;
             }
-            /* CORRECCIÓN: Estilos específicos para controles de tonos en modo oscuro */
             QFrame[styleClass="control_tono"] {
                 border: 2px solid #555555;
                 border-radius: 12px;
                 background-color: #404040;
                 margin: 3px;
             }
-            QFrame[styleClass="control_tono"] QLabel {
-                color: #ffffff;
-                background-color: transparent;
-            }
-            QFrame[styleClass="control_tono"] QSpinBox {
-                background-color: #2b2b2b;
-                border: 1px solid #666666;
-                color: #ffffff;
-                border-radius: 4px;
-                padding: 2px;
-            }
-            QFrame[styleClass="control_tono"] QComboBox {
-                background-color: #2b2b2b;
-                border: 1px solid #666666;
-                color: #ffffff;
-                border-radius: 4px;
-                padding: 2px;
-            }
-            QFrame[styleClass="control_tono"] QSlider::groove:horizontal {
-                border: 1px solid #666666;
-                height: 8px;
-                background: #555555;
-                margin: 2px 0;
-                border-radius: 4px;
-            }
-            QFrame[styleClass="control_tono"] QSlider::handle:horizontal {
-                background: #64b5f6;
-                border: 1px solid #42a5f5;
-                width: 18px;
-                margin: -2px 0;
-                border-radius: 9px;
-            }
-            QFrame[styleClass="control_tono"] QSlider::handle:horizontal:hover {
-                background: #42a5f5;
-            }
-            QFrame[styleClass="control_tono"] QCheckBox {
-                color: #ffffff;
-                background-color: transparent;
-            }
-            QFrame[styleClass="control_tono"] QCheckBox::indicator {
-                background-color: #2b2b2b;
-                border: 1px solid #666666;
-                border-radius: 3px;
-            }
-            QFrame[styleClass="control_tono"] QCheckBox::indicator:checked {
-                background-color: #28a745;
-                border: 1px solid #28a745;
-            }
-            /* CORRECCIÓN: Contenedor principal de tonos en modo oscuro */
             QWidget#widget_contenedor_tonos {
                 background-color: #3c3c3c;
                 border: none;
             }
-            /* CORRECCIÓN: Área de scroll específica para tonos */
             QScrollArea#scroll_area_tonos {
                 background-color: #3c3c3c;
                 border: 1px solid #555555;
                 border-radius: 8px;
-            }
-            QScrollArea#scroll_area_tonos QScrollBar:vertical {
-                background-color: #404040;
-                width: 14px;
-                border-radius: 7px;
-                border: 1px solid #666666;
-                margin: 2px;
-            }
-            QScrollArea#scroll_area_tonos QScrollBar::handle:vertical {
-                background-color: #64b5f6;
-                border-radius: 6px;
-                min-height: 30px;
-                border: 1px solid #42a5f5;
-                margin: 1px;
-            }
-            QScrollArea#scroll_area_tonos QScrollBar::handle:vertical:hover {
-                background-color: #42a5f5;
-            }
-            QScrollArea#scroll_area_tonos QScrollBar::add-line:vertical,
-            QScrollArea#scroll_area_tonos QScrollBar::sub-line:vertical {
-                border: none;
-                background: none;
-                height: 0px;
-            }
-            QScrollArea#scroll_area_tonos QScrollBar::add-page:vertical,
-            QScrollArea#scroll_area_tonos QScrollBar::sub-page:vertical {
-                background-color: #404040;
             }
         """)
 
@@ -967,7 +847,6 @@ class ControlTonoMejorado(QFrame):
             """)
             self.etiqueta_estado.setText("⏸ Pausado")
             self.etiqueta_estado.setStyleSheet("font-size: 11px; color: #ffc107; font-weight: bold;")
-            
         self.emitir_cambios()
         
     def asegurar_motor_audio_activo(self):
@@ -980,11 +859,10 @@ class ControlTonoMejorado(QFrame):
             parent = self.parent()
             while parent and not hasattr(parent, 'motor_audio'):
                 parent = parent.parent()
-            
             if parent and hasattr(parent, 'motor_audio'):
                 if not parent.motor_audio.reproduciendo:
                     parent.iniciar_audio_global()
-                    
+
     def pausar_si_reproduciendose(self):
         """NUEVO: Pausa el tono si está reproduciéndose (para pausa de temporizador)"""
         if self.esta_reproduciendo and self.check_activo.isChecked():
@@ -1000,7 +878,6 @@ class ControlTonoMejorado(QFrame):
             print(f"DEBUG: Reactivando tono {self.id_tono} - Checkbox habilitado: {self.check_activo.isChecked()}")
             self.esta_reproduciendo = True
             self.detenido_por_temporizador = False
-            
             # CORRECCIÓN: Actualizar interfaz visual COMPLETA
             self.btn_play_pause.setText("⏸")
             self.btn_play_pause.setStyleSheet("""
@@ -1018,15 +895,12 @@ class ControlTonoMejorado(QFrame):
             """)
             self.etiqueta_estado.setText("▶ Reproduciendo")
             self.etiqueta_estado.setStyleSheet("font-size: 11px; color: #28a745; font-weight: bold;")
-            
             # IMPORTANTE: Forzar actualización visual
             self.btn_play_pause.update()
             self.etiqueta_estado.update()
-            
             # Emitir cambios para actualizar motor de audio
             self.emitir_cambios()
             self.asegurar_motor_audio_activo()
-            
             print(f"DEBUG: Tono {self.id_tono} reactivado exitosamente")
             return True
         else:
@@ -1038,7 +912,6 @@ class ControlTonoMejorado(QFrame):
         if not self.esta_reproduciendo and self.check_activo.isChecked():
             print(f"DEBUG: Reanudando tono {self.id_tono} después de pausa de temporizador")
             self.esta_reproduciendo = True
-            
             # Actualizar interfaz visual
             self.btn_play_pause.setText("⏸")
             self.btn_play_pause.setStyleSheet("""
@@ -1056,7 +929,6 @@ class ControlTonoMejorado(QFrame):
             """)
             self.etiqueta_estado.setText("▶ Reproduciendo")
             self.etiqueta_estado.setStyleSheet("font-size: 11px; color: #28a745; font-weight: bold;")
-            
             # Emitir cambios para actualizar motor de audio
             self.emitir_cambios()
             self.asegurar_motor_audio_activo()
@@ -1073,7 +945,7 @@ class ControlTonoMejorado(QFrame):
             self.detenido_por_temporizador = False
         else:
             self.detenido_por_temporizador = False
-            
+
         self.btn_play_pause.setText("▶")
         self.btn_play_pause.setStyleSheet("""
             QPushButton {
@@ -1098,8 +970,6 @@ class ControlTonoMejorado(QFrame):
         
         # CAMBIO CRÍTICO: NUNCA desactivar el checkbox automáticamente
         # El usuario debe controlar manualmente el checkbox
-        # if not desde_temporizador and not desde_pausa_temporizador:
-        #     self.check_activo.setChecked(False)  # ← ESTA LÍNEA COMENTADA
         
         # Emitir cambios para asegurar sincronización con motor de audio
         self.emitir_cambios()
@@ -1154,8 +1024,9 @@ class ControlPomodoro(QFrame):
         
         # CORRECCIÓN: Configuraciones predefinidas ANTES de configurar interfaz
         self.configuraciones = {
+            "Estudio/Trabajo (25/5)": {"trabajo": 25, "descanso_corto": 5, "descanso_largo": 15, "ciclos_largo": 4},
+            "Inmersión Profunda (50/10)": {"trabajo": 50, "descanso_corto": 10, "descanso_largo": 30, "ciclos_largo": 3},
             "Clásico": {"trabajo": 25, "descanso_corto": 5, "descanso_largo": 15, "ciclos_largo": 4},
-            "Estudio Intensivo": {"trabajo": 50, "descanso_corto": 10, "descanso_largo": 30, "ciclos_largo": 3},
             "Trabajo Creativo": {"trabajo": 90, "descanso_corto": 20, "descanso_largo": 60, "ciclos_largo": 2},
             "Concentración Ultra": {"trabajo": 120, "descanso_corto": 30, "descanso_largo": 90, "ciclos_largo": 2},
             "Sesiones Cortas": {"trabajo": 15, "descanso_corto": 3, "descanso_largo": 10, "ciclos_largo": 6},
@@ -1368,7 +1239,7 @@ class ControlPomodoro(QFrame):
             self.grupo_personalizado.setVisible(False)
             self.configuracion_actual = self.configuraciones[nombre_config].copy()
             self.actualizar_display_configuracion()
-            
+
     def actualizar_configuracion_personalizada(self):
         """Actualiza la configuración personalizada"""
         self.configuracion_actual["trabajo"] = self.spin_trabajo.value()
@@ -1383,7 +1254,7 @@ class ControlPomodoro(QFrame):
             tiempo_trabajo = self.configuracion_actual["trabajo"]
             minutos = tiempo_trabajo
             self.display_tiempo.setText(f"{minutos:02d}:00")
-            
+
     def iniciar_pomodoro(self):
         """Inicia un ciclo Pomodoro"""
         if not self.timer_qt.isActive():
@@ -1410,7 +1281,7 @@ class ControlPomodoro(QFrame):
             self.btn_iniciar.clicked.disconnect()
             self.btn_iniciar.clicked.connect(self.pausar_pomodoro)
             return
-            
+
         self.tiempo_total_segundos = tiempo_minutos * 60
         self.tiempo_restante_segundos = tiempo_minutos * 60
         self.timer_qt.start(1000)
@@ -1472,7 +1343,7 @@ class ControlPomodoro(QFrame):
         if self.tiempo_restante_segundos <= 0:
             self.completar_fase()
             return
-            
+
         minutos = self.tiempo_restante_segundos // 60
         segundos = self.tiempo_restante_segundos % 60
         self.display_tiempo.setText(f"{minutos:02d}:{segundos:02d}")
@@ -1484,7 +1355,7 @@ class ControlPomodoro(QFrame):
             self.ciclos_completados += 1
             self.sesiones_trabajo_completadas += 1
             self.ciclo_completado.emit("trabajo")
-            
+
             # Determinar tipo de descanso
             if self.ciclos_completados % self.configuracion_actual["ciclos_largo"] == 0:
                 # Descanso largo
@@ -1518,22 +1389,20 @@ class ControlPomodoro(QFrame):
                         margin: 5px 0;
                     }
                 """)
-                
+
             self.en_descanso = True
             self.tiempo_total_segundos = tiempo_descanso * 60
             self.tiempo_restante_segundos = tiempo_descanso * 60
             self.timer_qt.start(1000)
-            
         else:
             # Terminó descanso, volver a trabajo
             self.ciclo_completado.emit("descanso")
             self.en_descanso = False
-            
+
             # Preparar siguiente sesión de trabajo
             tiempo_trabajo = self.configuracion_actual["trabajo"]
             self.tiempo_total_segundos = tiempo_trabajo * 60
             self.tiempo_restante_segundos = tiempo_trabajo * 60
-            
             self.indicador_fase.setText("🍅 Trabajando - ¡Concéntrate!")
             self.indicador_fase.setStyleSheet("""
                 QLabel {
@@ -1547,12 +1416,10 @@ class ControlPomodoro(QFrame):
                     margin: 5px 0;
                 }
             """)
-            
             self.timer_qt.start(1000)
-            
+
         # Actualizar estadísticas
         self.etiqueta_stats.setText(f"📊 Ciclos: {self.ciclos_completados} | Sesiones: {self.sesiones_trabajo_completadas}")
-
 
 class ControlTemporizador(QFrame):
     """Widget del temporizador - CORRECCIÓN: Sin mensaje de alerta"""
@@ -1685,12 +1552,10 @@ class ControlTemporizador(QFrame):
             minutos = self.spin_minutos.value()
             segundos = self.spin_segundos.value()
             tiempo_total = minutos * 60 + segundos
-            
             # Actualizar display
             minutos_display = tiempo_total // 60
             segundos_display = tiempo_total % 60
             self.display_tiempo.setText(f"{minutos_display:02d}:{segundos_display:02d}")
-            
             # Actualizar estado
             if tiempo_total > 0:
                 self.etiqueta_estado.setText("🔄 Listo para iniciar")
@@ -2051,16 +1916,6 @@ class VentanaPrincipal(QMainWindow):
 <li><b>Estadísticas:</b> Seguimiento de ciclos y sesiones completadas</li>
 </ol>
 
-<h3>🎯 Flujo de Trabajo Optimizado:</h3>
-<ol>
-<li><b>Configurar Ambiente:</b> Agregar tonos de concentración (Ruido Rosa + Seno 40Hz)</li>
-<li><b>Habilitar Tonos:</b> ✓ Marcar solo los que deseas para trabajo</li>
-<li><b>Elegir Técnica:</b> Pomodoro para tareas o Temporizador para sesiones libres</li>
-<li><b>Trabajar:</b> Los tonos se gestionan automáticamente según la fase</li>
-<li><b>Descansar:</b> Sistema pausa tonos durante descansos</li>
-<li><b>Repetir:</b> Ciclos automáticos hasta completar objetivos</li>
-</ol>
-
 <h3>🔧 Estado del Sistema:</h3>
 <p><b>Audio:</b> {'🟢 Real EXPANDIDO' if AUDIO_DISPONIBLE else '🟡 Simulado EXPANDIDO'}</p>
 <p><b>Tema:</b> {'🌙 Oscuro PERFECTO' if self.theme_manager.is_dark else '☀ Claro PERFECTO'}</p>
@@ -2139,11 +1994,10 @@ class VentanaPrincipal(QMainWindow):
             self.layout_tonos.removeWidget(control)
             control.deleteLater()
             del self.controles_tonos[id_tono]
-            
             self.motor_audio.eliminar_tono(id_tono)
             self.actualizar_estadisticas()
             self.barra_estado.showMessage(f"🗑 Tono {id_tono} eliminado")
-            
+
     def play_all_tones(self):
         """Reproduce todos los tonos"""
         tonos_iniciados = 0
@@ -2169,7 +2023,6 @@ class VentanaPrincipal(QMainWindow):
             self.barra_estado.showMessage(f"⏹ {tonos_detenidos} tonos detenidos")
         else:
             self.barra_estado.showMessage("⏹ Todos los tonos ya están detenidos")
-            
         # Verificar y detener audio global si es necesario
         self.verificar_y_gestionar_audio_global()
         
@@ -2177,7 +2030,6 @@ class VentanaPrincipal(QMainWindow):
         """Elimina todos los tonos con confirmación"""
         if not self.controles_tonos:
             return
-            
         respuesta = QMessageBox.question(
             self, "Confirmar Eliminación", 
             f"¿Eliminar todos los {len(self.controles_tonos)} tonos?",
@@ -2189,21 +2041,36 @@ class VentanaPrincipal(QMainWindow):
             for id_tono in ids_tonos:
                 self.eliminar_tono(id_tono)
             self.barra_estado.showMessage("🗑 Todos los tonos eliminados")
-            
+
     def al_modificar_tono(self, id_tono, configuracion):
-        """Maneja modificaciones de tonos"""
-        self.motor_audio.actualizar_tono(id_tono, **configuracion)
+        """CORREGIDO: Maneja modificaciones de tonos con actualización en tiempo real"""
+        # IMPORTANTE: Actualizar inmediatamente en el motor de audio
+        if AUDIO_DISPONIBLE and self.motor_audio.reproduciendo:
+            # Forzar actualización inmediata en el hilo de audio
+            self.motor_audio.actualizar_tono(id_tono, **configuracion)
+            # NUEVO: Verificar que el tono esté activo en el motor si debe estarlo
+            if configuracion.get('activo', False):
+                self.motor_audio.set_tono_activo(id_tono, True)
+            else:
+                self.motor_audio.set_tono_activo(id_tono, False)
+        else:
+            # Modo simulación o audio detenido
+            self.motor_audio.actualizar_tono(id_tono, **configuracion)
+        
         self.actualizar_estadisticas()
         
         # Verificar si hay tonos activos para gestionar el audio global
         self.verificar_y_gestionar_audio_global()
         
+        # Mensaje detallado en barra de estado
         freq = configuracion['frecuencia']
         vol = int(configuracion['volumen'] * 100)
         pan = configuracion['panning']
         pan_texto = f"L{abs(pan)*100:.0f}" if pan < -0.2 else f"R{pan*100:.0f}" if pan > 0.2 else "C"
         estado = "▶" if configuracion['activo'] else "⏸"
-        self.barra_estado.showMessage(f"{estado} Tono {id_tono}: {freq} Hz, {vol}%, {pan_texto}")
+        tipo = configuracion.get('tipo_onda', 'seno').title()
+        
+        self.barra_estado.showMessage(f"{estado} Tono {id_tono}: {freq}Hz, {vol}%, {pan_texto}, {tipo} - Actualizado en tiempo real")
         
     def verificar_y_gestionar_audio_global(self):
         """Verifica si hay tonos activos y gestiona el audio global automáticamente"""
@@ -2217,16 +2084,13 @@ class VentanaPrincipal(QMainWindow):
         if tonos_activos == 0 and self.motor_audio.reproduciendo:
             self.motor_audio.detener()
             self.btn_audio_global.setText("🔊 Iniciar Audio")
-            
             if tonos_habilitados > 0:
                 self.barra_estado.showMessage(f"🔇 Audio detenido automáticamente - {tonos_habilitados} tonos habilitados (listos para reactivar)")
             elif tonos_configurados > 0:
                 self.barra_estado.showMessage(f"🔇 Audio detenido automáticamente - {tonos_configurados} tonos pausados")
             else:
                 self.barra_estado.showMessage("🔇 Audio detenido automáticamente - Sin tonos activos")
-            
             self.actualizar_estadisticas()
-            
         # Si hay tonos activos pero el audio no está corriendo, iniciarlo automáticamente
         elif tonos_activos > 0 and not self.motor_audio.reproduciendo:
             self.motor_audio.iniciar()
@@ -2277,10 +2141,9 @@ class VentanaPrincipal(QMainWindow):
                         control.emitir_cambios()
                         tonos_reactivados += 1
                         print(f"DEBUG: Tono {control.id_tono} reactivado con fallback manual")
-            
+
             # Actualizar contadores después de reactivación
             tonos_activos = tonos_reactivados
-            
             if tonos_reactivados > 0:
                 self.barra_estado.showMessage(f"⏱ Temporizador iniciado - {tonos_reactivados} tonos reactivados automáticamente")
                 print(f"DEBUG FINAL: {tonos_reactivados} tonos reactivados exitosamente")
@@ -2298,7 +2161,7 @@ class VentanaPrincipal(QMainWindow):
             self.barra_estado.showMessage(f"⏱ Temporizador iniciado - {tonos_disponibles} tonos disponibles (marca ✓ para habilitar)")
         elif tonos_disponibles == 0:
             self.barra_estado.showMessage("⏱ Temporizador iniciado - Agrega tonos para comenzar")
-            
+
         # Actualizar estadísticas
         self.actualizar_estadisticas()
         
@@ -2320,10 +2183,10 @@ class VentanaPrincipal(QMainWindow):
             self.barra_estado.showMessage(f"⏹ Temporizador detenido manualmente - {tonos_detenidos} tonos detenidos")
         else:
             self.barra_estado.showMessage("⏹ Temporizador detenido manualmente")
-            
+
         # Actualizar estadísticas
         self.actualizar_estadisticas()
-            
+
     def al_pausar_temporizador(self):
         """NUEVO: Maneja la pausa del temporizador - pausa tonos activos"""
         tonos_pausados = 0
@@ -2336,7 +2199,7 @@ class VentanaPrincipal(QMainWindow):
             self.barra_estado.showMessage(f"⏸ Temporizador pausado - {tonos_pausados} tonos pausados")
         else:
             self.barra_estado.showMessage("⏸ Temporizador pausado")
-            
+
     def al_reanudar_temporizador(self):
         """NUEVO: Maneja la reanudación del temporizador - reanuda tonos pausados"""
         tonos_reanudados = 0
@@ -2376,7 +2239,7 @@ class VentanaPrincipal(QMainWindow):
             self.barra_estado.showMessage(f"✅ Sesión completada - {tonos_detenidos} tonos detenidos automáticamente")
         else:
             self.barra_estado.showMessage("✅ ¡Sesión completada!")
-            
+
         # Sincronizar estados para próxima ejecución (con delay corto)
         QTimer.singleShot(100, self.sincronizar_estados_tonos)
         
@@ -2416,7 +2279,7 @@ class VentanaPrincipal(QMainWindow):
             self.btn_audio_global.setText("🔇 Detener Audio")
             self.barra_estado.showMessage("🔊 Audio global iniciado")
         self.actualizar_estadisticas()
-            
+
     def sincronizar_estados_tonos(self):
         """CORRECCIÓN: Sincroniza los estados visuales preservando checkboxes para reactivación"""
         for control in self.controles_tonos.values():
@@ -2464,7 +2327,138 @@ class VentanaPrincipal(QMainWindow):
         texto_stats += f"🔊 Audio global: {estado_audio}"
         
         self.etiqueta_stats.setText(texto_stats)
+    
+    def al_iniciar_pomodoro(self):
+        """NUEVO: Maneja el inicio del Pomodoro - reactivación automática mejorada"""
+        # Verificar estados de tonos
+        tonos_disponibles = len(self.controles_tonos)
+        tonos_activos = sum(1 for control in self.controles_tonos.values()
+                           if control.esta_reproduciendo and control.check_activo.isChecked())
+        tonos_habilitados = sum(1 for control in self.controles_tonos.values()
+                               if control.check_activo.isChecked())
         
+        print(f"DEBUG POMODORO: Tonos disponibles: {tonos_disponibles}, activos: {tonos_activos}, habilitados: {tonos_habilitados}")
+        
+        # REACTIVAR tonos habilitados para sesión de trabajo
+        if tonos_habilitados > 0:
+            tonos_reactivados = 0
+            for control in self.controles_tonos.values():
+                if control.check_activo.isChecked() and not control.esta_reproduciendo:
+                    print(f"DEBUG: Reactivando tono {control.id_tono} para Pomodoro")
+                    if hasattr(control, 'reactivar_si_habilitado'):
+                        if control.reactivar_si_habilitado():
+                            tonos_reactivados += 1
+                    else:
+                        # Fallback manual
+                        control.esta_reproduciendo = True
+                        control.btn_play_pause.setText("⏸")
+                        control.btn_play_pause.setStyleSheet("""
+                            QPushButton {
+                                background-color: #ffc107;
+                                color: black;
+                                border: none;
+                                border-radius: 17px;
+                                font-weight: bold;
+                                font-size: 14px;
+                            }
+                            QPushButton:hover {
+                                background-color: #e0a800;
+                            }
+                        """)
+                        control.etiqueta_estado.setText("▶ Reproduciendo")
+                        control.etiqueta_estado.setStyleSheet("font-size: 11px; color: #28a745; font-weight: bold;")
+                        control.emitir_cambios()
+                        tonos_reactivados += 1
+            
+            if tonos_reactivados > 0:
+                self.barra_estado.showMessage(f"🍅 Pomodoro iniciado - {tonos_reactivados} tonos reactivados para concentración")
+            else:
+                self.barra_estado.showMessage(f"🍅 Pomodoro iniciado - {tonos_habilitados} tonos habilitados disponibles")
+        
+        # Iniciar audio global si no está activo
+        if tonos_disponibles > 0 and not self.motor_audio.reproduciendo:
+            self.motor_audio.iniciar()
+            self.btn_audio_global.setText("🔇 Detener Audio")
+        
+        # Mensaje informativo si no hay tonos
+        if tonos_disponibles == 0:
+            self.barra_estado.showMessage("🍅 Pomodoro iniciado - Agrega tonos para acompañar el trabajo")
+        
+        self.actualizar_estadisticas()
+    
+    def al_pausar_pomodoro(self):
+        """NUEVO: Maneja la pausa del Pomodoro"""
+        tonos_pausados = 0
+        for control in self.controles_tonos.values():
+            if control.esta_reproduciendo:
+                control.stop_tone(desde_pausa_temporizador=True)
+                tonos_pausados += 1
+        
+        if tonos_pausados > 0:
+            self.barra_estado.showMessage(f"🍅 Pomodoro pausado - {tonos_pausados} tonos pausados")
+        else:
+            self.barra_estado.showMessage("🍅 Pomodoro pausado")
+        
+        self.actualizar_estadisticas()
+    
+    def al_finalizar_pomodoro(self):
+        """NUEVO: Maneja la finalización del Pomodoro"""
+        tonos_detenidos = 0
+        for control in self.controles_tonos.values():
+            if control.esta_reproduciendo:
+                control.stop_tone(desde_temporizador=True)
+                tonos_detenidos += 1
+        
+        # Detener motor de audio
+        if self.motor_audio.reproduciendo:
+            self.motor_audio.detener()
+            self.btn_audio_global.setText("🔊 Iniciar Audio")
+        
+        if tonos_detenidos > 0:
+            self.barra_estado.showMessage(f"🍅 Pomodoro finalizado - {tonos_detenidos} tonos detenidos")
+        else:
+            self.barra_estado.showMessage("🍅 Pomodoro finalizado")
+        
+        self.actualizar_estadisticas()
+    
+    def al_completar_ciclo_pomodoro(self, tipo_ciclo):
+        """NUEVO: Maneja la completación de un ciclo de Pomodoro"""
+        if tipo_ciclo == "trabajo":
+            # Al terminar trabajo, pasar a descanso - PAUSAR tonos
+            tonos_pausados = 0
+            for control in self.controles_tonos.values():
+                if control.esta_reproduciendo:
+                    control.stop_tone(desde_pausa_temporizador=True)
+                    tonos_pausados += 1
+            
+            self.barra_estado.showMessage(f"🍅 Trabajo completado - Tiempo de descanso (tonos pausados)")
+            
+        elif tipo_ciclo == "descanso":
+            # Al terminar descanso, volver a trabajo - REACTIVAR tonos habilitados
+            tonos_reactivados = 0
+            for control in self.controles_tonos.values():
+                if control.check_activo.isChecked() and not control.esta_reproduciendo:
+                    if hasattr(control, 'reactivar_si_habilitado'):
+                        if control.reactivar_si_habilitado():
+                            tonos_reactivados += 1
+                    else:
+                        # Fallback manual
+                        control.esta_reproduciendo = True
+                        control.btn_play_pause.setText("⏸")
+                        control.etiqueta_estado.setText("▶ Reproduciendo")
+                        control.emitir_cambios()
+                        tonos_reactivados += 1
+            
+            if tonos_reactivados > 0:
+                self.barra_estado.showMessage(f"🍅 Descanso completado - Volviendo al trabajo ({tonos_reactivados} tonos reactivados)")
+            else:
+                self.barra_estado.showMessage("🍅 Descanso completado - Volviendo al trabajo")
+            
+            # Asegurar audio global activo
+            self.verificar_y_gestionar_audio_global()
+        
+        self.actualizar_estadisticas()
+    
     def closeEvent(self, event):
         """Cierre de aplicación"""
         # Detener todos los tonos primero
@@ -2478,7 +2472,6 @@ class VentanaPrincipal(QMainWindow):
         # Detener temporizador
         if hasattr(self, 'control_temporizador'):
             self.control_temporizador.timer_qt.stop()
-            
         print("🔊 Sound Hz Emitter cerrado correctamente")
         event.accept()
         
